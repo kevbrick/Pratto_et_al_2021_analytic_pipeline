@@ -2,25 +2,30 @@
 
 ### Pipeline accessory data (required):
 The git repo contains the ONLY the pipeline script. Before running the pipeline, you need to download the accessory data. You can either run the getAccessoryFiles.sh script from the git repo:
-`bash getAccessoryFiles.sh`
+```
+bash getAccessoryFiles.sh
+```
 or you can get the file directly
-`wget https://hpc.nih.gov/~brickkm/meioticReplicationData/PrattoEtAl_accessoryFiles.tar.gz` \ 
-`tar -zxvf PrattoEtAl_accessoryFiles.tar.gz`
+```
+wget https://hpc.nih.gov/~brickkm/meioticReplicationData/PrattoEtAl_accessoryFiles.tar.gz
+tar -zxvf PrattoEtAl_accessoryFiles.tar.gz
+```
 
 ### Requirements:
-nextflow v20.01.0
-singularity  v3.5.3
+nextflow    : 20.01.0 \
+singularity : 3.5.3 \
 
-###Complete command set to run pipeline: 
-`git clone https://github.com/kevbrick/prattoEtAlAnalyticPipeline.git && cd prattoEtAlAnalyticPipeline` \
-`bash getAccessoryFiles.sh` \ 
-`projDir=``pwd``` \
-`nextflow run $projDir/replicationPaperPipe_v5.nf -c $projDir/accessoryFiles/config/nextflow.config.nf -profile singularity --projectdir $projDir/`
+### Complete command set to run pipeline: 
+```
+git clone https://github.com/kevbrick/prattoEtAlAnalyticPipeline.git && cd prattoEtAlAnalyticPipeline
+bash getAccessoryFiles.sh
+projDir=`pwd`
+nextflow run $projDir/replicationPaperPipe_v5.nf -c $projDir/accessoryFiles/config/nextflow.config.nf -profile singularity --projectdir $projDir/
+```
+## ------------------------------------------------------------------------
+The pipeline may also be run without the singularity container. The easiest alternative is to use modules (accessoryFiles/modules.config.nf). \
 
-### For those of you who do not wish to use the singularity container: 
-A modules configuration file fr nextflow is also included. 
-
-## Requirements (if not using the containerized pipeline: NOT RECOMMENDED): 
+#### Requirements (if not using the containerized pipeline: NOT RECOMMENDED): 
 R/3.6.0 \
 bedtools/2.27.1 \
 deeptools/3.0.1 \
@@ -34,7 +39,7 @@ samtools/1.9 \
 sratoolkit/2.9.2 \
 ucsc/388 
 
-## R packages: 
+#### R packages: 
 animation \
 cowplot \
 data.table \
@@ -66,7 +71,7 @@ tictoc \
 UpSetR \
 zoo
 
-## Perl packages:
+#### Perl packages:
 Bio::SeqIO (BioPerl) \
 File::Basename \
 File::Find \
@@ -76,10 +81,3 @@ List::Util \
 Math::Round \
 POSIX \
 Statistics::Descriptive
-
-
-
-
-
-
-

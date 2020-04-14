@@ -13,7 +13,7 @@ tar -zxvf PrattoEtAl_accessoryFiles.tar.gz
 
 ### Requirements:
 nextflow    : 20.01.0 \
-singularity : 3.5.3 \
+singularity : 3.5.3 
 
 ### Complete command set to run pipeline: 
 ```
@@ -23,7 +23,7 @@ projDir=`pwd`
 nextflow run $projDir/replicationPaperPipe_v5.nf -c $projDir/accessoryFiles/config/nextflow.config.nf -profile singularity --projectdir $projDir/
 ```
 ## ------------------------------------------------------------------------
-The pipeline may also be run without the singularity container. The easiest alternative is to use modules (accessoryFiles/modules.config.nf). \
+The pipeline may also be run without the singularity container. The easiest alternative is to use modules (accessoryFiles/modules.config.nf). 
 
 #### Requirements (if not using the containerized pipeline: NOT RECOMMENDED): 
 R/3.6.0 \

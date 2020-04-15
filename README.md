@@ -38,9 +38,9 @@ nextflow run $projDir/replicationPaperPipe_v5.nf -c $projDir/accessoryFiles/conf
 ### Other issues: 
 Errors are most likely if nextflow and/or singularity are not-quite correctly configured. For example, singularity autoMounts must be enabled, and if you are using a http proxy, the proxy environment variable must be passed to singularity via the nextflow.config.nf file. Please contact me if you have questions (kevin.brick@nih.gov).  
 
-#### ---------------------------------------------------------------------------------------------------------------
-#### -- Alternatives to singularity container (not recommended) ----------------------------------------------------
-#### ---------------------------------------------------------------------------------------------------------------
+#### ------------------------------------------------------------------------------------------------------------------------
+### Alternatives to singularity container (not recommended) 
+#### ------------------------------------------------------------------------------------------------------------------------
 The pipeline may also be run without the singularity container. This is not recommended, however, if you insist, the easiest alternative is to use modules (accessoryFiles/modules.config.nf). 
 
 #### Requirements (if not using the containerized pipeline: NOT RECOMMENDED): 

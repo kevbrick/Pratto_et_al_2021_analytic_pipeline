@@ -16,13 +16,15 @@ nextflow    : 20.01.0 \
 singularity : 3.5.3 
 
 ### Configuring your nextflow environment
-The pipeline is configured by default, to run from a singularity container on a SLURM-based HPC system. On such a system, it should work without reconfiguration. To run it on a local system, specify the local profile in the nextflow run command:
+By default, the pipeline is configured to run from a singularity container on a SLURM-based HPC system. On such a system, it should work without reconfiguration. To run it on a local system, specify the local profile in the nextflow run command:
 
 ```
 -profile singularity,local
 ```
 
 Using the local profile will assume that you have a writable temporary folder named "/tmp". This, and other system-specific settings can be changed in the nextflow configuration file (accessoryFiles/config/nextflow.config.nf). 
+
+By default, the pipeline will use up to 16 cores and 32Gb RAM. The RAM requirement is pretty inflexible, but you can change the number of cores for each process should you need to. This will simply result in a longer runtime. Resource requirements are defined in the accessoryFiles/config/nextflow.config.nf configuration file. If your system does not have the required resources, the pipeline will die once it hits the process that exceeds requirements. 
 
 ### Required environment variables
 If running on a local filesystem, the environment variable TMPDIR must be set.

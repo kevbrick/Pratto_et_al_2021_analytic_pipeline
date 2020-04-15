@@ -15,15 +15,33 @@ tar -zxvf PrattoEtAl_accessoryFiles.tar.gz
 nextflow    : 20.01.0 \
 singularity : 3.5.3 
 
-### Complete command set to run pipeline: 
+### Configuring your nextflow environment
+The pipeline is configured by default, to run from a singularity container on a SLURM-based HPC system. On such a system, it should work without reconfiguration. To run it on a local system, specify the local profile in the nextflow run command:
+
+```
+-profile singularity,local
+```
+
+Using the local profile will assume that you have a writable temporary folder named "/tmp". This, and other system-specific settings can be changed in the nextflow configuration file (accessoryFiles/config/nextflow.config.nf). 
+
+### Required environment variables
+If running on a local filesystem, the environment variable TMPDIR must be set.
+
+### Complete bash command set to run pipeline: 
 ```
 git clone https://github.com/kevbrick/prattoEtAlAnalyticPipeline.git && cd prattoEtAlAnalyticPipeline
 bash getAccessoryFiles.sh
 projDir=`pwd`
 nextflow run $projDir/replicationPaperPipe_v5.nf -c $projDir/accessoryFiles/config/nextflow.config.nf -profile singularity --projectdir $projDir/
 ```
-## ------------------------------------------------------------------------
-The pipeline may also be run without the singularity container. The easiest alternative is to use modules (accessoryFiles/modules.config.nf). 
+
+### Other issues: 
+Errors are most likely if nextflow and/or singularity are not-quite correctly configured. For example, singularity autoMounts must be enabled, and if you are using a http proxy, the proxy environment variable must be passed to singularity via the nextflow.config.nf file. Please contact me if you have questions (kevin.brick@nih.gov).  
+
+#### ---------------------------------------------------------------------------------------------------------------
+#### -- Alternatives to singularity container (not recommended) ----------------------------------------------------
+#### ---------------------------------------------------------------------------------------------------------------
+The pipeline may also be run without the singularity container. This is not recommended, however, if you insist, the easiest alternative is to use modules (accessoryFiles/modules.config.nf). 
 
 #### Requirements (if not using the containerized pipeline: NOT RECOMMENDED): 
 R/3.6.0 \

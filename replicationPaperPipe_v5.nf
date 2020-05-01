@@ -151,7 +151,7 @@ Channel
   .fromPath("${params.mmOriSSDSdir}/*.ssDNA_type1.bam")
   .ifEmpty { exit 1, "mm10 oriSSDS BAM files not found in ${params.mmOriSSDSdir} or mis-named.\nTry running getOriSSDSData.sh in the accessoryFiles/data/oriSSDS folder" }
   .map { sample -> tuple(getName(sample), 'mm10', file(getIDX(sample)), sample) }
-  .into {oriSSDSBAMs_mm10_1; oriSSDSBAMs_mm10_2; ssdsBAMs}
+  .into {oriSSDSBAMs_mm10_1; oriSSDSBAMs_mm10_2; ssdsBAMs; ssdsBAMs_b}
 
   def getName( file ) {
     def nm="${file.name}"
@@ -219,7 +219,7 @@ process makeWinFiles {
   file (af) from af1.collect()
 
   output:
-  file "win*bed" into (winFiles_a, winFiles_b, winFiles_c)
+  file "win*bed" into (winFiles_a, winFiles_b, winFiles_c, winFiles_d, winFiles_e)
 
   script:
   """
@@ -235,15 +235,18 @@ process makeWinFiles {
   """
   }
 
-process getGomezOrigins {
+process getOtherOrigins {
 
   publishDir params.outdirGomez, mode: 'copy', overwrite: true
 
   input:
 
   output:
-  file 'ori_ESC_gomez.bedgraph' into gomezOriES
-  file 'ori_MEF_gomez.bedgraph' into gomezOriMEF
+  file 'ori_ESC_gomez.bedgraph'    into gomezOriES
+  file 'ori_MEF_gomez.bedgraph'    into gomezOriMEF
+  file 'AlmeidaESC.peaks.mm10.bed' into ori_AlmeidaESC
+  file 'AlmeidaMEF.peaks.mm10.bed' into ori_AlmeidaMEF
+  file 'CayrouESC.peaks.mm10.bed'  into ori_CayrouESC
 
   script:
   """
@@ -277,6 +280,23 @@ process getGomezOrigins {
 
   mapBed -a ori_MEF_gomez.bed -b MEF_rep2.bedgraph -c 4 -o sum >ori_MEF_gomez.bedgraph
   mapBed -a ori_ESC_gomez.bed -b ESC_rep2.bedgraph -c 4 -o sum >ori_ESC_gomez.bedgraph
+
+  ## Peak calls
+  wget https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2651nnn/GSM2651111/suppl/GSM2651111_mES_WT_repl_I_peaks.bigBed
+  bigBedToBed GSM2651111_mES_WT_repl_I_peaks.bigBed GSM2651111_mES_WT_repl_I_peaks.bed
+  sort -k1,1 -k2n,2n GSM2651111_mES_WT_repl_I_peaks.bed >AlmeidaESC.peaks.mm10.bed
+
+  wget https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2651nnn/GSM2651107/suppl/GSM2651107_MEFs_WT_repl_I_peaks.bigBed
+  bigBedToBed GSM2651107_MEFs_WT_repl_I_peaks.bigBed GSM2651107_MEFs_WT_repl_I_peaks.bed
+  sort -k1,1 -k2n,2n GSM2651107_MEFs_WT_repl_I_peaks.bed >AlmeidaMEF.peaks.mm10.bed
+
+  ## Cayrou_2015
+  wget https://ftp.ncbi.nlm.nih.gov/geo/series/GSE68nnn/GSE68347/suppl/GSE68347_Initiation_Sites.bedGraph.gz
+  wget ftp://hgdownload.cse.ucsc.edu/goldenPath/mm9/liftOver/mm9ToMm10.over.chain.gz   -O mm9ToMm10.over.chain.gz
+
+  gunzip GSE68347_Initiation_Sites.bedGraph.gz
+  cut -f1-3  GSE68347_Initiation_Sites.bedGraph |sort -k1,1 -k2n,2n >CayrouESC.peaks.mm9.bed
+  liftOver CayrouESC.peaks.mm9.bed  mm9ToMm10.over.chain.gz  CayrouESC.peaks.mm10.bed na
 
   """
   }
@@ -836,7 +856,7 @@ process finalMergeForOrigins {
    output:
    file '*mm10_OriSSDS*.bed'           into mouseOriginsInitBED
    file '*mm10_OriSSDS*.tab'           into mouseOriginsInitTAB
-   file "hiconf_origins.mm10.bedgraph" into (mouseOriginsBG_a, mouseOriginsBG_b, mouseOriginsBG_c, mouseOriginsBG_d, mouseOriginsBG_e)
+   file "hiconf_origins.mm10.bedgraph" into (mouseOriginsBG_a, mouseOriginsBG_b, mouseOriginsBG_c, mouseOriginsBG_d, mouseOriginsBG_e, mouseOriginsBG_f)
    file "hiconf_origins.mm10.Rdata"    into mouseOriginsHCRdata
    file "rand*hiconf_*.mm10.bedgraph"  into mouseRandomOriginsBG
    file "union_origins.mm10.bedgraph"  into mouseOriginsBGUnion
@@ -901,9 +921,11 @@ process getCoverageAtOrigins {
   file (af) from af8.collect()
   set val(id), val(genome), file(bed) from ssdsBEDs
   file(ori)                           from allOriginsBED_a.collect()
+  file(winz)                          from winFiles_e
 
   output:
   file "*RPKM.bigwig"             into (oriSSDSBW1, oriSSDSBW2)
+  file "*FR.frags.bigwig"         into (oriSSDSFRbw)
   file "*.origins*fragsMatrix.gz" into (oriSSDS_dtMatrix,oriSSDS_dtMatrix_a,oriSSDS_dtMatrix_b)
   file "*.g4.*.fragsMatrix.gz"    into g4SSDS_dtMatrix
   file "*png"                     into g4heatmapFigs
@@ -932,6 +954,12 @@ process getCoverageAtOrigins {
   bamCoverage --bam \$oName.POS.frags.bam --outFileName \$oName.POS.frags.RPKM.bigwig --outFileFormat bigwig --binSize 150 -p max --ignoreForNormalization chrX chrM chrY --normalizeUsing RPKM
   bamCoverage --bam \$oName.NEG.frags.bam --outFileName \$oName.NEG.frags.RPKM.bigwig --outFileFormat bigwig --binSize 150 -p max --ignoreForNormalization chrX chrM chrY --normalizeUsing RPKM
   bamCoverage --bam \$oName.ALL.frags.bam --outFileName \$oName.ALL.frags.RPKM.bigwig --outFileFormat bigwig --binSize 150 -p max --ignoreForNormalization chrX chrM chrY --normalizeUsing RPKM
+
+  mapBed -a win1ks100.bed -b \$oName.POS.frags.bam -c 1 -o count >\$oName.POS.frags.bg
+  mapBed -a win1ks100.bed -b \$oName.NEG.frags.bam -c 1 -o count >\$oName.NEG.frags.bg
+
+  paste \$oName.POS.frags.bg \$oName.NEG.frags.bg |perl -lane 'use Math::Round; \$fr = (\$F[3]+1)/(\$F[7]+1); \$logfr = log(\$fr)/log(2); \$mid=round((\$F[1]+\$F[2])/2); print join("\\t",\$F[0],\$mid-49,\$mid+50,\$logfr)' |sort -k1,1 -k2n,2n >\$oName.FR.frags.bg
+  bedGraphToBigWig \$oName.FR.frags.bg ${params.genomedir}/${genome}_genome.fa.fai \$oName.FR.frags.bigwig
 
   computeMatrix reference-point --referencePoint center -a 10000 -b 10000 \
                         -R ${genome}_OriSSDS.Origins.bed \
@@ -1844,6 +1872,148 @@ process getHOP2hs {
   """
   }
 
+process makeOKSeqBW {
+
+  publishDir params.outdirBW,   mode: 'copy', overwrite: true, pattern: '*bigwig'
+
+  input:
+  file (af)       from af38.collect()
+  file(winz)      from winFiles_d.collect()
+
+  output:
+  file('*FR.bigwig')  into okSeqBW
+
+  script:
+  """
+  ln -s accessoryFiles/OKseq/OKseq_ES_Petryk_SRR7535256.bam* .
+
+  samtools view -f 16 -hb OKseq_ES_Petryk_SRR7535256.bam >REV.bam
+  samtools view -F 16 -hb OKseq_ES_Petryk_SRR7535256.bam >FWD.bam
+
+  bedtools bamtobed -i FWD.bam | cut -f1-3 | accessoryFiles/scripts/sortBEDByFAI.pl - ${params.genomedir}/mm10_genome.fa.fai >FWD.bed
+  bedtools bamtobed -i REV.bam | cut -f1-3 | accessoryFiles/scripts/sortBEDByFAI.pl - ${params.genomedir}/mm10_genome.fa.fai >REV.bed
+
+  mapBed -a win1ks100.bed -b FWD.bed -c 1 -o count >OkSeq.POS.frags.bg
+  mapBed -a win1ks100.bed -b REV.bed -c 1 -o count >OkSeq.NEG.frags.bg
+
+  paste OkSeq.POS.frags.bg OkSeq.NEG.frags.bg |perl -lane 'use Math::Round; \
+                       \$fr = (\$F[3]+1)/(\$F[7]+1); \
+                       \$logfr = log(\$fr)/log(2); \
+                       \$pos=round((\$F[1]+\$F[2])/2); \
+                       print join("\\t",\$F[0],\$pos-49,\$pos+50,\$logfr)' |sort -k1,1 -k2n,2n >OkSeq.FR.bg
+
+  bedGraphToBigWig OkSeq.FR.bg ${params.genomedir}/mm10_genome.fa.fai OkSeq.FR.bigwig
+
+  """
+  }
+
+process compareToSNSandOKSeq {
+
+  publishDir params.outdirFigs, mode: 'copy', overwrite: true, pattern: '*png'
+  publishDir params.outdirFigs, mode: 'copy', overwrite: true, pattern: '*svg'
+  publishDir params.outdirFigs, mode: 'copy', overwrite: true, pattern: '*matrix*'
+
+  input:
+  file (af)       from af39.collect()
+  file(oriBW)     from oriSSDSFRbw.collect()
+  file mouseOriginsBG_f
+  file ori_AlmeidaESC
+  file ori_AlmeidaMEF
+  file ori_CayrouESC
+  file okSeqBW
+
+  output:
+  file('*png')     into compOriPNG
+  file('*svg')     into compOriPDF
+  file('*matrix*') into compOriMatrix
+
+  script:
+  """
+  ## Get Project .Rprofile file
+  cp accessoryFiles/scripts/R/Rprofile.workflow   ./.Rprofile
+  echo RTSCRIPTS="accessoryFiles/scripts/R/"    >>./.Renviron
+
+  sort -k1,1 -k2n,2n ${ori_CayrouESC} ${ori_AlmeidaESC} ${ori_AlmeidaMEF} >allSNS.bed
+
+  oriESaYes = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaESC} -u |wc -l`
+  oriESaNo  = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaESC} -u |wc -l`
+  oriMEFYes = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaMEF} -u |wc -l`
+  oriMEFNo  = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaMEF} -u |wc -l`
+  oriEScYes = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_CayrouESC}  -u |wc -l`
+  oriEScNo  = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_CayrouESC}  -u |wc -l`
+  oriSNSYes = `intersectBed -a ${mouseOriginsBG_f} -b allSNS.bed        -u |wc -l`
+  oriSNSNo  = `intersectBed -a ${mouseOriginsBG_f} -b allSNS.bed        -u |wc -l`
+
+  echo -e "sample\\toverlap\\tno"                     >oriOverlaps.txt
+  echo -e "Almeida (ESC)\\t\$oriESaYes\\t\$oriESaNo" >>oriOverlaps.txt
+  echo -e "Almeida (MEF)\\t\$oriMEFYes\\t\$oriMEFNo" >>oriOverlaps.txt
+  echo -e "Cayrou (ESC)\\t\$oriEScYes\\t\$oriEScNo"  >>oriOverlaps.txt
+  echo -e "Any\\t\$oriSNSYes\\t\$oriSNSNo"           >>oriOverlaps.txt
+
+  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawSSDS_v_SNS_overlaps.R >o.o 2>e.e
+
+  #####
+  intersectBed -a ${ori_AlmeidaESC} -b ${mouseOriginsBG_f} -u |cut -f1-3 >almESCyes.bed
+  intersectBed -a ${ori_AlmeidaESC} -b ${mouseOriginsBG_f} -u |cut -f1-3 >almESCno.bed
+
+  intersectBed -a ${ori_AlmeidaMEF} -b ${mouseOriginsBG_f} -u |cut -f1-3 >almMEFyes.bed
+  intersectBed -a ${ori_AlmeidaMEF} -b ${mouseOriginsBG_f} -v |cut -f1-3 >almESCno.bed
+
+  intersectBed -a ${ori_CayrouESC} -b ${mouseOriginsBG_f} -u |cut -f1-3 >cayESCyes.bed
+  intersectBed -a ${ori_CayrouESC} -b ${mouseOriginsBG_f} -v |cut -f1-3 >cayESCno.bed
+
+  intersectBed -a ${ori_CayrouESC} -b ${ori_AlmeidaESC} -u   |cut -f1-3 >x2ESC.bed
+  intersectBed -a x2ESC.bed        -b ${mouseOriginsBG_f} -u |cut -f1-3 >x2ESCyes.bed
+  intersectBed -a x2ESC.bed        -b ${mouseOriginsBG_f} -v |cut -f1-3 >x2ESCno.bed
+
+  computeMatrix reference-point -R ${mouseOriginsBG_f} \
+                                -S ${okSeqBW} mm10_WT_Rep2.FR.frags.bigwig \
+                                -a 1500000 -b 1500000 \
+                                --referencePoint center -p max \
+                                -bl accessoryFiles/rtSeq/mm10/blacklist/mm10.blacklist.bed \
+                                -o oriSSDS_V_okSeq.matrix.gz \
+                                -bs 50000 --missingDataAsZero
+
+  plotHeatmap -m oriVokSeq.matrix.gz -o origins_VS_OkSeq.all.png --colorMap RdBu_r --averageTypeSummaryPlot median \
+              --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
+              --samplesLabel "Ok-Seq" "Ori-SSDS" \
+              --refPointLabel "0" --xAxisLabel "Distance to origin (Mb)" --yAxisLabel "Strand asymmetry; log2(F/R)" -T "" \
+              --zMax 0.1 --zMin -0.1
+
+  plotHeatmap -m oriVokSeq.matrix.gz -o origins_VS_OkSeq.all.svg --colorMap RdBu_r --averageTypeSummaryPlot median \
+              --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
+              --samplesLabel "Ok-Seq" "Ori-SSDS" \
+              --refPointLabel "0" --xAxisLabel "Distance to origin (Mb)" --yAxisLabel "Strand asymmetry; log2(F/R)" -T "" \
+              --zMax 0.1 --zMin -0.1
+
+  computeMatrix reference-point -R ${mouseOriginsBG_f} \
+                                   almESCyes.bed \
+                                   almMEFyes.bed \
+                                   cayESCyes.bed\
+                                   x2ESCyes.bed\
+                                   almESCno.bed \
+                                   almMEFno.bed \
+                                   cayESCno.bed\
+                                   x2ESCno.bed\
+                                -S ${okSeqBW} \
+                                -a 1500000 -b 1500000 \
+                                --referencePoint center -p max \
+                                -bl accessoryFiles/rtSeq/mm10/blacklist/mm10.blacklist.bed \
+                                -o oriVokSeq.matrix.gz \
+                                -bs 50000 --missingDataAsZero
+
+  plotHeatmap -m oriVokSeq.matrix.gz -o origins_VS_OkSeq.all.png --colorMap RdBu_r --averageTypeSummaryPlot median \
+              --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
+              --heatmapWidth 8 --heatmapHeight 24 --refPointLabel "0" --xAxisLabel "Distance to peak (Mb)" --yAxisLabel "Ok-Seq strand asymmetry; log2(F/R)" -T "" \
+              --zMax 0.1 --zMin -0.1
+
+  plotHeatmap -m oriVokSeq.matrix.gz -o origins_VS_OkSeq.all.svg --colorMap RdBu_r --averageTypeSummaryPlot median \
+              --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
+              --heatmapWidth 8 --heatmapHeight 24 --refPointLabel "0" --xAxisLabel "Distance to peak (Mb)" --yAxisLabel "Ok-Seq strand asymmetry; log2(F/R)" -T "" \
+              --zMax 0.1 --zMin -0.1
+  """
+  }
+
 process makeFigure2and4 {
 
   tag {modelRData}
@@ -1881,8 +2051,8 @@ process makeFigure2and4 {
   script:
   """
   ## Get Project .Rprofile file
-  cp accessoryFiles/scripts/R/Rprofile.workflow    ./.Rprofile
-  echo RTSCRIPTS="accessoryFiles/scripts/R/"     >>./.Renviron
+  cp accessoryFiles/scripts/R/Rprofile.workflow   ./.Rprofile
+  echo RTSCRIPTS="accessoryFiles/scripts/R/"    >>./.Renviron
 
   mv ${ori}   origins.recombMetrics.bedgraph
   cp accessoryFiles/recombinationData/Prdm9_AffinitySeq_AdultB6_rep1_1_peaks.bedgraph affySeq.recombMetrics.bedgraph
@@ -2015,7 +2185,7 @@ process makeFigure2and4 {
     cut -f 4 \$nm.bedgraph >>\$ol
   done
 
-#  cp ${params.codeRdir}/flipHiCdata.R .
+  #  cp ${params.codeRdir}/flipHiCdata.R .
 
   for bgInit in hiC*recombMetrics.bedgraph;
   do
@@ -2070,13 +2240,13 @@ process makeFigure2and4 {
   grep -wP '(cs|chr12)' x.dz.tab >>chr12.dz.tab
 
   #cp accessoryFiles/scripts/R/drawFigure2.R .
-  #cp accessoryFiles/scripts/R/drawFigure4New.R .
+  #cp accessoryFiles/scripts/R/drawFNew.R .
   #cp accessoryFiles/scripts/R/drawRT_EarlyMidLate_SuppFig.R .
   cp accessoryFiles/sorting/*.fcs .
   cp accessoryFiles/img/DSBschemaBIG.png .
 
-  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure2.R >o.o 2>e.e
-  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure4New.R >o.o 2>e.e
+  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure2.R  >o.o 2>e.e
+  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure4New.R  >o.o 2>e.e
   R --silent --quiet --no-save <accessoryFiles/scripts/R/drawRT_EarlyMidLate_SuppFig.R >o.o 2>e.e
   """
   }
@@ -2103,7 +2273,7 @@ process plotModelGridSearchResults {
   script:
   """
   ## Get Project .Rprofile file
-  cp accessoryFiles/scripts/R/Rprofile.workflow    ./.Rprofile
+  cp accessoryFiles/scripts/R/Rprofile.workflow   ./.Rprofile
   echo RTSCRIPTS="accessoryFiles/scripts/R/"     >>./.Renviron
 
   cp accessoryFiles/sorting/*.fcs .

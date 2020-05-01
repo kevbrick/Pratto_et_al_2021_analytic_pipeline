@@ -1887,8 +1887,8 @@ process makeOKSeqBW {
   """
   ln -s accessoryFiles/OKseq/OKseq_ES_Petryk_SRR7535256.bam* .
 
-  samtools view -f 16 -hb OKseq_ES_Petryk_SRR7535256.bam >REV.bam
-  samtools view -F 16 -hb OKseq_ES_Petryk_SRR7535256.bam >FWD.bam
+  samtools view -f 16 -hb OKseq_ES_Petryk_SRR7535256.bam  >REV.bam
+  samtools view -F 16 -hb OKseq_ES_Petryk_SRR7535256.bam  >FWD.bam
 
   bedtools bamtobed -i FWD.bam | cut -f1-3 | accessoryFiles/scripts/sortBEDByFAI.pl - ${params.genomedir}/mm10_genome.fa.fai >FWD.bed
   bedtools bamtobed -i REV.bam | cut -f1-3 | accessoryFiles/scripts/sortBEDByFAI.pl - ${params.genomedir}/mm10_genome.fa.fai >REV.bed
@@ -1903,7 +1903,6 @@ process makeOKSeqBW {
                        print join("\\t",\$F[0],\$pos-49,\$pos+50,\$logfr)' |sort -k1,1 -k2n,2n >OkSeq.FR.bg
 
   bedGraphToBigWig OkSeq.FR.bg ${params.genomedir}/mm10_genome.fa.fai OkSeq.FR.bigwig
-
   """
   }
 
@@ -1957,7 +1956,7 @@ process compareToSNSandOKSeq {
   intersectBed -a ${ori_AlmeidaESC} -b ${mouseOriginsBG_f} -u |cut -f1-3 >almESCno.bed
 
   intersectBed -a ${ori_AlmeidaMEF} -b ${mouseOriginsBG_f} -u |cut -f1-3 >almMEFyes.bed
-  intersectBed -a ${ori_AlmeidaMEF} -b ${mouseOriginsBG_f} -v |cut -f1-3 >almESCno.bed
+  intersectBed -a ${ori_AlmeidaMEF} -b ${mouseOriginsBG_f} -v |cut -f1-3 >almMEFno.bed
 
   intersectBed -a ${ori_CayrouESC} -b ${mouseOriginsBG_f} -u |cut -f1-3 >cayESCyes.bed
   intersectBed -a ${ori_CayrouESC} -b ${mouseOriginsBG_f} -v |cut -f1-3 >cayESCno.bed
@@ -1975,16 +1974,11 @@ process compareToSNSandOKSeq {
                                 -bs 50000 --missingDataAsZero
 
   plotHeatmap -m oriSSDS_V_okSeq.matrix.gz -o origins_VS_OkSeq.all.png --colorMap RdBu_r --averageTypeSummaryPlot median \
-              --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
+              --regionsLabel "Origins (Ori-SSDS)" \
               --samplesLabel "Ok-Seq" "Ori-SSDS" \
               --refPointLabel "0" --xAxisLabel "Distance to origin (Mb)" --yAxisLabel "Strand asymmetry; log2(F/R)" -T "" \
-              --zMax 0.1 --zMin -0.1
+              --zMax 0.1 --zMin -0.1 --heatmapHeight 6
 
-  plotHeatmap -m oriSSDS_V_okSeq.matrix.gz -o origins_VS_OkSeq.all.svg --colorMap RdBu_r --averageTypeSummaryPlot median \
-              --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
-              --samplesLabel "Ok-Seq" "Ori-SSDS" \
-              --refPointLabel "0" --xAxisLabel "Distance to origin (Mb)" --yAxisLabel "Strand asymmetry; log2(F/R)" -T "" \
-              --zMax 0.1 --zMin -0.1
 
   computeMatrix reference-point -R ${mouseOriginsBG_f} \
                                    almESCyes.bed \
@@ -2005,12 +1999,7 @@ process compareToSNSandOKSeq {
   plotHeatmap -m oriVokSeq.matrix.gz -o origins_VS_OkSeq.all.png --colorMap RdBu_r --averageTypeSummaryPlot median \
               --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
               --heatmapWidth 8 --heatmapHeight 24 --refPointLabel "0" --xAxisLabel "Distance to peak (Mb)" --yAxisLabel "Ok-Seq strand asymmetry; log2(F/R)" -T "" \
-              --zMax 0.1 --zMin -0.1
-
-  plotHeatmap -m oriVokSeq.matrix.gz -o origins_VS_OkSeq.all.svg --colorMap RdBu_r --averageTypeSummaryPlot median \
-              --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
-              --heatmapWidth 8 --heatmapHeight 24 --refPointLabel "0" --xAxisLabel "Distance to peak (Mb)" --yAxisLabel "Ok-Seq strand asymmetry; log2(F/R)" -T "" \
-              --zMax 0.1 --zMin -0.1
+              --zMax 0.1 --zMin -0.1 --heatmapHeight 8
   """
   }
 

@@ -1935,14 +1935,14 @@ process compareToSNSandOKSeq {
 
   sort -k1,1 -k2n,2n ${ori_CayrouESC} ${ori_AlmeidaESC} ${ori_AlmeidaMEF} >allSNS.bed
 
-  oriESaYes = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaESC} -u |wc -l`
-  oriESaNo  = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaESC} -u |wc -l`
-  oriMEFYes = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaMEF} -u |wc -l`
-  oriMEFNo  = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaMEF} -u |wc -l`
-  oriEScYes = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_CayrouESC}  -u |wc -l`
-  oriEScNo  = `intersectBed -a ${mouseOriginsBG_f} -b ${ori_CayrouESC}  -u |wc -l`
-  oriSNSYes = `intersectBed -a ${mouseOriginsBG_f} -b allSNS.bed        -u |wc -l`
-  oriSNSNo  = `intersectBed -a ${mouseOriginsBG_f} -b allSNS.bed        -u |wc -l`
+  oriESaYes=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaESC} -u |wc -l`
+  oriESaNo=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaESC} -u |wc -l`
+  oriMEFYes=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaMEF} -u |wc -l`
+  oriMEFNo=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaMEF} -u |wc -l`
+  oriEScYes=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_CayrouESC}  -u |wc -l`
+  oriEScNo=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_CayrouESC}  -u |wc -l`
+  oriSNSYes=`intersectBed -a ${mouseOriginsBG_f} -b allSNS.bed        -u |wc -l`
+  oriSNSNo=`intersectBed -a ${mouseOriginsBG_f} -b allSNS.bed        -u |wc -l`
 
   echo -e "sample\\toverlap\\tno"                     >oriOverlaps.txt
   echo -e "Almeida (ESC)\\t\$oriESaYes\\t\$oriESaNo" >>oriOverlaps.txt
@@ -1970,7 +1970,7 @@ process compareToSNSandOKSeq {
                                 -S ${okSeqBW} mm10_WT_Rep2.FR.frags.bigwig \
                                 -a 1500000 -b 1500000 \
                                 --referencePoint center -p max \
-                                -bl accessoryFiles/rtSeq/mm10/blacklist/mm10.blacklist.bed \
+                                -bl accessoryFiles/blacklist/mm10.blacklist.bed \
                                 -o oriSSDS_V_okSeq.matrix.gz \
                                 -bs 50000 --missingDataAsZero
 
@@ -1998,7 +1998,7 @@ process compareToSNSandOKSeq {
                                 -S ${okSeqBW} \
                                 -a 1500000 -b 1500000 \
                                 --referencePoint center -p max \
-                                -bl accessoryFiles/rtSeq/mm10/blacklist/mm10.blacklist.bed \
+                                -bl accessoryFiles/blacklist/mm10.blacklist.bed \
                                 -o oriVokSeq.matrix.gz \
                                 -bs 50000 --missingDataAsZero
 

@@ -1974,13 +1974,13 @@ process compareToSNSandOKSeq {
                                 -o oriSSDS_V_okSeq.matrix.gz \
                                 -bs 50000 --missingDataAsZero
 
-  plotHeatmap -m oriVokSeq.matrix.gz -o origins_VS_OkSeq.all.png --colorMap RdBu_r --averageTypeSummaryPlot median \
+  plotHeatmap -m oriSSDS_V_okSeq.matrix.gz -o origins_VS_OkSeq.all.png --colorMap RdBu_r --averageTypeSummaryPlot median \
               --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
               --samplesLabel "Ok-Seq" "Ori-SSDS" \
               --refPointLabel "0" --xAxisLabel "Distance to origin (Mb)" --yAxisLabel "Strand asymmetry; log2(F/R)" -T "" \
               --zMax 0.1 --zMin -0.1
 
-  plotHeatmap -m oriVokSeq.matrix.gz -o origins_VS_OkSeq.all.svg --colorMap RdBu_r --averageTypeSummaryPlot median \
+  plotHeatmap -m oriSSDS_V_okSeq.matrix.gz -o origins_VS_OkSeq.all.svg --colorMap RdBu_r --averageTypeSummaryPlot median \
               --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
               --samplesLabel "Ok-Seq" "Ori-SSDS" \
               --refPointLabel "0" --xAxisLabel "Distance to origin (Mb)" --yAxisLabel "Strand asymmetry; log2(F/R)" -T "" \

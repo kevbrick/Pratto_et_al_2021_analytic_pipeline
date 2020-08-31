@@ -59,7 +59,8 @@ Channel.fromPath("${params.accessorydir}")
        .into {af1; af2 ; af3 ; af4 ; af5 ; af6 ; af7 ; af8 ; af9 ; af10;
              af11; af12; af13; af14; af15; af16; af17; af18; af19; af20;
              af21; af22; af23; af24; af25; af26; af27; af28; af29; af30;
-             af31; af32; af33; af34; af35; af36; af37; af38; af39; af40}
+             af31; af32; af33; af34; af35; af36; af37; af38; af39; af40;
+             af41; af42; af43; af44; af45; af46; af47; af48; af49; af50}
 
 params.outdir            = ""
 params.outdirPeaks       = "${params.outdir}/peakCalls"
@@ -219,7 +220,7 @@ process makeWinFiles {
   file (af) from af1.collect()
 
   output:
-  file "win*bed" into (winFiles_a, winFiles_b, winFiles_c, winFiles_d, winFiles_e)
+  file "win*bed" into (winFiles_a, winFiles_b, winFiles_c, winFiles_d, winFiles_e, winFiles_f)
 
   script:
   """
@@ -342,15 +343,12 @@ process getCpGIslands {
   sort -k1,1 -k2n,2n -k3n,3n mm10_CpG.w1ks100.tmp >mm10_CpG.w1ks100.bedgraph
   bedGraphToBigWig mm10_CpG.w1ks100.bedgraph ${mm10IDX} mm10_CpG.w1ks100.bigwig
 
-  #mapBed -a win1ks147.bed -b mm10_CpG.bed -g ${mm10IDX} -c 1 -o count |perl -lane 'print join("\\t",\$F[0],\$F[1]+450,\$F[2]-450,\$F[3])' >mm10_CpG.w1ks147.tmp
-  #sort -k1,1 -k2n,2n -k3n,3n mm10_CpG.w1ks100.tmp >mm10_CpG.w1ks147.bedgraph
-  #bedGraphToBigWig mm10_CpG.w1ks147.bedgraph ${mm10IDX} mm10_CpG.w1ks147.bigwig
-
-  ## All origins first
+  ## Get overlap stats of CpG peaks with Oris
   perl -lane '\$cpg = \$F[3]/1000; print \$_ if (\$cpg > 0.05)' mm10_CpG.w1ks100.bedgraph >CpG_thresholded.bed
   slopBed   -i CpG_thresholded.bed           -g ${mm10IDX} -b 100                                                   |sort -k1,1 -k2n,2n              >CpG_thresholded.slop100.bed
   mergeBed  -i CpG_thresholded.slop100.bed                                                                          |sort -k1,1 -k2n,2n              >CpG_thresholded.slopMerge.bed
   slopBed   -i CpG_thresholded.slopMerge.bed -g ${mm10IDX} -pct -r -0.5 -l -0.5 |slopBed -i - -g ${mm10IDX} -b 150  |sort -k1,1 -k2n,2n              >mm10_CpG_peaks.bed
+
 
   """
   }
@@ -856,7 +854,7 @@ process finalMergeForOrigins {
    output:
    file '*mm10_OriSSDS*.bed'           into mouseOriginsInitBED
    file '*mm10_OriSSDS*.tab'           into mouseOriginsInitTAB
-   file "hiconf_origins.mm10.bedgraph" into (mouseOriginsBG_a, mouseOriginsBG_b, mouseOriginsBG_c, mouseOriginsBG_d, mouseOriginsBG_e, mouseOriginsBG_f)
+   file "hiconf_origins.mm10.bedgraph" into (mouseOriginsBG_a, mouseOriginsBG_b, mouseOriginsBG_c, mouseOriginsBG_d, mouseOriginsBG_e, mouseOriginsBG_f, mouseOriginsBG_g, mouseOriginsBG_h)
    file "hiconf_origins.mm10.Rdata"    into mouseOriginsHCRdata
    file "rand*hiconf_*.mm10.bedgraph"  into mouseRandomOriginsBG
    file "union_origins.mm10.bedgraph"  into mouseOriginsBGUnion
@@ -1079,7 +1077,8 @@ process plotCoverageVG4 {
   }
 
 // MAKE SLICE DATA
-Channel.from( ["chr2" , 74694564,  74768877, "chr2_74Mb_wideLots"],
+Channel.from( ["chr1" , 38764000,  39764000, "chr1_38Mb_figure1"],
+              ["chr2" , 74694564,  74768877, "chr2_74Mb_wideLots"],
               ["chr2" ,157040000, 157220000, "chr2_157Mb"],
               ["chr2" ,160622000, 161132000, "chr2_161Mb"],
               ["chr2" ,160712000, 160952000, "chr2_160Mb"],
@@ -1292,6 +1291,184 @@ process drawSNSPeakCallingProblemsFig {
   """
   }
 
+
+process getCpGvOriPredictiveAbility {
+
+  publishDir params.outdirGomez, mode: 'copy', overwrite: true
+
+  input:
+  file (af) from af28.collect()
+  file(winz) from winFiles_f.collect()
+  file(ori) from mouseOriginsBG_h
+
+  output:
+  file 'CpG_overlapStats.txt'      into mm10CpGOLStats
+
+  script:
+  """
+  ## Get CpG density in 1 Kb wins 100bp slide
+  perl ${params.codedir}/getDiNTsFromFA.pl ${mm10FA} CG >mm10_CpG.bed
+
+  mapBed -a win1ks100.bed -b mm10_CpG.bed -g ${mm10IDX} -c 1 -o count |perl -lane 'print join("\\t",\$F[0],\$F[1]+450,\$F[2]-450,\$F[3])' >mm10_CpG.w1ks100.tmp
+  sort -k1,1 -k2n,2n -k3n,3n mm10_CpG.w1ks100.tmp >mm10_CpG.w1ks100.bedgraph
+
+  ## Get overlap stats of CpG peaks with Oris
+  echo -e "pcGC\\tatOri\\ttotGC\\ttotOri" >CpG_overlapStats.txt
+
+  cp mm10_CpG.w1ks100.bedgraph mm10_CpG.w1ks100.forT.bedgraph
+
+  for p in 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10 0.11 0.12 0.13 0.14 0.15; do
+
+    perl -lane '\$cpg = \$F[3]/1000; print \$_ if (\$cpg > '\$p')' mm10_CpG.w1ks100.forT.bedgraph >CpG_thresholded.bed
+
+    ## Speed this up ...
+    cp CpG_thresholded.bed mm10_CpG.w1ks100.forT.bedgraph
+
+  	slopBed   -i CpG_thresholded.bed           -g ${mm10IDX} -b 100               |sort -k1,1 -k2n,2n              >CpG_thresholded.slop100.bed
+
+    mergeBed  -i CpG_thresholded.slop100.bed                                      |sort -k1,1 -k2n,2n              >CpG_thresholded.slopMerge.bed
+
+    slopBed   -i CpG_thresholded.slopMerge.bed -g ${mm10IDX} -pct -r -0.5 -l -0.5 |slopBed -i - -g accessoryFiles/genomeFiles//mm10_genome.fa.fai -b 150  |sort -k1,1 -k2n,2n              >mm10_CpG_peaks.\$p.bed
+
+    ol=`intersectBed -a ${ori}  -b "mm10_CpG_peaks."\$p".bed" -u |grep -vP 'chr[XYM]' |wc -l`
+
+    tot=`cat "mm10_CpG_peaks."\$p".bed" |wc -l`
+
+    ori=`cat ${ori}|wc -l`
+
+    echo -e "\$p\\t\$ol\\t\$tot\\t\$ori" >>CpG_overlapStats.txt
+
+  done
+  """
+  }
+
+process getTFBSfiles {
+
+  input:
+  file (hs) from hotspotBG500
+  file (af) from af41.collect()
+
+  output:
+  path('TFBS_*') into TFBS
+  file('*jar')   into apps
+  file('HOCO*')  into motifs
+  path('pwm')    into pwm
+  path('pvals')  into pvals
+
+  script:
+  """
+  wget http://opera.autosome.ru/downloads/ape-3.0.2.jar
+  wget https://raw.githubusercontent.com/autosome-ru/sarus/master/releases/sarus-2.0.1.jar
+  wget http://gtrd.biouml.org/downloads/19.10/chip-seq/Mus%20musculus_meta_clusters.interval.gz -O TF_peaks.tar.gz
+  wget https://hocomoco11.autosome.ru/final_bundle/hocomoco11/core/MOUSE/mono/HOCOMOCOv11_core_pwm_MOUSE_mono.tar.gz
+
+  #cp accessoryFiles/TF/*jar .
+  #cp accessoryFiles/TF/*gz .
+
+  zcat TF_peaks.tar.gz | grep -v uniprot | grep -P 'chr[0-9]+\\s' |awk -F"\\t" '{print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t"toupper(\$6)"\\t+">toupper(\$6)".TFBS.bed"}'
+
+  ## Use DSB hotspots +- 250 bp for PRDM9
+  grep -P 'chr[0-9]+\\s' ${hs} |perl -lane 'print join("\\t",@F[0..3],"PRDM9","+")' >PRDM9.TFBS.bed
+
+  for tfbs in *.TFBS.bed; do
+    sort -k1,1 -k2n,2n \$tfbs -o \$tfbs
+  done
+
+  tar -zxvf HOCOMOCOv11_core_pwm_MOUSE_mono.tar.gz
+  java -cp ape-3.0.2.jar ru.autosome.ape.PrecalculateThresholds pwm pvals --background .3,.2,.2,.3
+
+  ## Rename PWMs
+  for p in pwm/*pwm; do
+    t1=\${p/pwm\\//};
+    tf=\${t1/_MOUSE*pwm/};
+    if [ -e \$tf".TFBS.bed" ]; then
+      mv \$p pwm/\$tf".pwm"
+    else
+      rm \$p
+    fi
+  done
+
+  ## Rename Threshold Files
+  for t in pvals/*thr; do
+    t1=\${t/pvals\\//}
+    tf=\${t1/_MOUSE*thr/}
+    if [ -e \$tf".TFBS.bed" ]; then
+      mv \$t pvals/\$tf".thr"
+    else
+      rm \$t
+    fi
+  done
+
+  for t in *.TFBS.bed; do
+    tf=\${t/.TFBS.bed/}
+    if [ ! -e 'pwm/'\$tf'.pwm' ]; then
+      rm \$t
+    fi
+  done
+
+  ## Split to subfolders
+  i=1
+  while read l; do mkdir -p TFBS_\$i;cp \$l TFBS_\$((i++));done< <(ls *.TFBS.bed|xargs -n10)
+  """
+  }
+
+process makeROCForTF {
+
+  publishDir "${params.outdirFigs}/TF_ROC", mode: 'copy', overwrite: true
+
+  input:
+  file (af) from af42.collect()
+  each path(TFBS)
+  file(apps)
+  file(motifs)
+  path(pwm)
+  path(pvals)
+
+  output:
+  file('*ROC.tab') into ROCdata
+  file('*png')     into png
+  file('*pdf')     into pdf
+
+  script:
+  """
+
+  for f in ${TFBS}/* ; do
+    ln -s \$f .
+  done
+
+  ## Get Project .Rprofile file
+  cp accessoryFiles/scripts/R/Rprofile.workflow ./.Rprofile
+
+  for tfbed in *TFBS.bed; do
+    tf=\${tfbed/.TFBS.bed/}
+    tfbed=\$tf".TFBS.bed"
+    pwm="pwm/"\$tf".pwm"
+    mbed=\$tf".motifs.bed"
+    pktab=\$tf".peaks_with_motifs.bed"
+
+    score_thresh=`perl -lane 'print \$F[0]; exit if (\$F[1] < 0.005)' pvals/\$tf".thr" |tail -n1`
+
+    npeaks=`cat \$tfbed |wc -l`
+
+    if [[ \$npeaks -gt 12000 ]]; then
+    	java -jar sarus-2.0.1.jar ${mm10FA} \$pwm \$score_thresh --output-bed | intersectBed -a - -b \$tfbed -c >\$mbed
+    	sort -k1,1 -k2n,2n \$mbed -o \$mbed
+    	intersectBed -a \$tfbed -b \$mbed -wao -sorted |slopBed -l -0.5 -r -0.5 -pct -g ${mm10IDX} -i - |perl -pi -e 's/\\t\\./\\t99999/g' |mergeBed -i - -c 11 -o min |perl -lane '\$F[3] =~ s/99999/-999/; print join("\\t",@F)' >\$pktab
+
+    	ln \$mbed motifs.bed
+    	ln \$pktab peaks_with_motifs.bed
+
+    	R --no-save <accessoryFiles/scripts/R/ROC_from_TFBS.R
+
+    	unlink motifs.bed
+    	unlink peaks_with_motifs.bed
+    else
+     	echo "SKIP \$tfbed"
+    fi
+  done
+  """
+  }
+
 process originsVCpGs {
 
   publishDir params.outdirImages,  mode: 'copy', overwrite: true, pattern: '*p??'
@@ -1299,9 +1476,11 @@ process originsVCpGs {
 
   input:
   file (af)      from af13.collect()
+  file(ROC)      from ROCdata.collect()
   file(ori)      from mouseOriginsBG_b
   file(tss)      from tssNoMergeBED1bp
   file(oriRdata) from mouseOriginsHCRdata
+  file(mm10CpGOLStats)
 
   output:
   file("ori_v_cgis.tab")               into oriVCpGsTAB
@@ -1391,6 +1570,23 @@ process originsVCpGs {
 
   intersectBed -a ori11k.bed -b accessoryFiles/data/g4/mm10.qparser2.g4.bed -wao |\
   perl -lane 'next if (\$_ =~ /\\s\\-1\\s+\\-1/); \$mid=((\$F[2]+\$F[1])/2); \$g4=((\$F[4]+\$F[5])/2); \$d=\$g4-\$mid; print join("\\t",\$mid,\$g4,\$d,\$F[8])' >g4_vs_origins.tab
+
+  ########################################################################################
+  cp ${params.codedir}/CalcPhysicoChemicalPropsFromFA.pl .
+
+  bedtools slop -l -0.5 -r -0.5 -pct -i ${ori} -g ${mm10IDX} |${params.codedir}/sortBEDByFAI.pl - ${mm10IDX} |cut -f1-3 >oriMMnt.bed
+
+  bedtools slop -l 10000 -r 10000 -i oriMMnt.bed -g ${mm10IDX} >oriMM.10k.bed
+
+  bedtools getfasta -fi ${mm10FA} -bed oriMM.10k.bed -fo oriMM.10k.fa
+
+  perl CalcPhysicoChemicalPropsFromFA.pl oriMM.10k.fa 25 >mm10Origins.bendability.txt
+  ########################################################################################
+
+  # Gather TFBS ROC data #################################################################
+  cat *ROC.tab |grep sens |head -n1  >ROCdata.tab
+  cat *ROC.tab |grep -v sens        >>ROCdata.tab
+  ########################################################################################
 
   ## Get Project .Rprofile file
   cp accessoryFiles/scripts/R/Rprofile.workflow ./.Rprofile
@@ -1681,7 +1877,7 @@ process processBestModels {
   file("*WG*pdf")                 into bestModelWGPDFs
   file("*mm10.simRT.WG.bedgraph") into (bestModelSimBGs,bestModelSimBGs_a,bestModelSimBGs_b)
   file("*mm10.expRT.WG.bedgraph") into (bestModelExpBGs,bestModelExpBGs_a,bestModelExpBGs_b)
-  file("*.Rdata")                 into (modelFiles, modelFiles_a, modelFiles_b)
+  file("*.Rdata")                 into (modelFiles, modelFiles_a, modelFiles_b, modelFiles_c)
 
   script:
   """
@@ -1935,13 +2131,13 @@ process compareToSNSandOKSeq {
   sort -k1,1 -k2n,2n ${ori_CayrouESC} ${ori_AlmeidaESC} ${ori_AlmeidaMEF} >allSNS.bed
 
   oriESaYes=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaESC} -u |wc -l`
-  oriESaNo=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaESC} -u |wc -l`
+  oriESaNo=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaESC} -v |wc -l`
   oriMEFYes=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaMEF} -u |wc -l`
-  oriMEFNo=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaMEF} -u |wc -l`
+  oriMEFNo=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_AlmeidaMEF} -v |wc -l`
   oriEScYes=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_CayrouESC}  -u |wc -l`
-  oriEScNo=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_CayrouESC}  -u |wc -l`
+  oriEScNo=`intersectBed -a ${mouseOriginsBG_f} -b ${ori_CayrouESC}  -v |wc -l`
   oriSNSYes=`intersectBed -a ${mouseOriginsBG_f} -b allSNS.bed        -u |wc -l`
-  oriSNSNo=`intersectBed -a ${mouseOriginsBG_f} -b allSNS.bed        -u |wc -l`
+  oriSNSNo=`intersectBed -a ${mouseOriginsBG_f} -b allSNS.bed        -v |wc -l`
 
   echo -e "sample\\toverlap\\tno"                     >oriOverlaps.txt
   echo -e "Almeida (ESC)\\t\$oriESaYes\\t\$oriESaNo" >>oriOverlaps.txt
@@ -1949,11 +2145,11 @@ process compareToSNSandOKSeq {
   echo -e "Cayrou (ESC)\\t\$oriEScYes\\t\$oriEScNo"  >>oriOverlaps.txt
   echo -e "Any\\t\$oriSNSYes\\t\$oriSNSNo"           >>oriOverlaps.txt
 
-  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawSSDS_v_SNS_overlaps.R >o.o 2>e.e
+  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawSSDS_v_SNS_overlaps.R
 
   #####
   intersectBed -a ${ori_AlmeidaESC} -b ${mouseOriginsBG_f} -u |cut -f1-3 >almESCyes.bed
-  intersectBed -a ${ori_AlmeidaESC} -b ${mouseOriginsBG_f} -u |cut -f1-3 >almESCno.bed
+  intersectBed -a ${ori_AlmeidaESC} -b ${mouseOriginsBG_f} -v |cut -f1-3 >almESCno.bed
 
   intersectBed -a ${ori_AlmeidaMEF} -b ${mouseOriginsBG_f} -u |cut -f1-3 >almMEFyes.bed
   intersectBed -a ${ori_AlmeidaMEF} -b ${mouseOriginsBG_f} -v |cut -f1-3 >almMEFno.bed
@@ -1968,7 +2164,7 @@ process compareToSNSandOKSeq {
   computeMatrix reference-point -R ${mouseOriginsBG_f} \
                                 -S ${okSeqBW} mm10_WT_Rep2.FR.frags.bigwig \
                                 -a 1500000 -b 1500000 \
-                                --referencePoint center -p max \
+                                --referencePoint center -p ${task.cpus} \
                                 -bl accessoryFiles/blacklist/mm10.blacklist.bed \
                                 -o oriSSDS_V_okSeq.matrix.gz \
                                 -bs 50000 --missingDataAsZero
@@ -1979,6 +2175,11 @@ process compareToSNSandOKSeq {
               --refPointLabel "0" --xAxisLabel "Distance to origin (Mb)" --yAxisLabel "Strand asymmetry; log2(F/R)" -T "" \
               --zMax 0.1 --zMin -0.1 --heatmapHeight 6
 
+  plotHeatmap -m oriSSDS_V_okSeq.matrix.gz -o origins_VS_OkSeq.all.svg --colorMap RdBu_r --averageTypeSummaryPlot median \
+              --regionsLabel "Origins (Ori-SSDS)" \
+              --samplesLabel "Ok-Seq" "Ori-SSDS" \
+              --refPointLabel "0" --xAxisLabel "Distance to origin (Mb)" --yAxisLabel "Strand asymmetry; log2(F/R)" -T "" \
+              --zMax 0.1 --zMin -0.1 --heatmapHeight 6
 
   computeMatrix reference-point -R ${mouseOriginsBG_f} \
                                    almESCyes.bed \
@@ -1991,12 +2192,17 @@ process compareToSNSandOKSeq {
                                    x2ESCno.bed\
                                 -S ${okSeqBW} \
                                 -a 1500000 -b 1500000 \
-                                --referencePoint center -p max \
+                                --referencePoint center -p ${task.cpus} \
                                 -bl accessoryFiles/blacklist/mm10.blacklist.bed \
                                 -o oriVokSeq.matrix.gz \
                                 -bs 50000 --missingDataAsZero
 
-  plotHeatmap -m oriVokSeq.matrix.gz -o origins_VS_OkSeq.all.png --colorMap RdBu_r --averageTypeSummaryPlot median \
+  plotHeatmap -m oriVokSeq.matrix.gz -o others_origins_VS_OkSeq.all.png --colorMap RdBu_r --averageTypeSummaryPlot median \
+              --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
+              --heatmapWidth 8 --heatmapHeight 24 --refPointLabel "0" --xAxisLabel "Distance to peak (Mb)" --yAxisLabel "Ok-Seq strand asymmetry; log2(F/R)" -T "" \
+              --zMax 0.1 --zMin -0.1 --heatmapHeight 8
+
+  plotHeatmap -m oriVokSeq.matrix.gz -o others_origins_VS_OkSeq.all.svg --colorMap RdBu_r --averageTypeSummaryPlot median \
               --regionsLabel "Ori-SSDS" "aESC(y)" "aMEF(y)" "cESC(y)" "x2ESC(y)" "aESC(n)" "aMEF(n)" "cESC(n)" "x2ESC(n)" \
               --heatmapWidth 8 --heatmapHeight 24 --refPointLabel "0" --xAxisLabel "Distance to peak (Mb)" --yAxisLabel "Ok-Seq strand asymmetry; log2(F/R)" -T "" \
               --zMax 0.1 --zMin -0.1 --heatmapHeight 8
@@ -2004,8 +2210,6 @@ process compareToSNSandOKSeq {
   }
 
 process makeFigure2and4 {
-
-  tag {modelRData}
 
   publishDir params.outdirRTables, mode: 'copy', overwrite: true, pattern: '*.tab'
   publishDir params.outdirAnnot,   mode: 'copy', overwrite: true, pattern: '*.bedgraph'
@@ -2113,6 +2317,28 @@ process makeFigure2and4 {
     sort -k1,1 -k2n,2n x.x >\$bg;
   done
 
+  ## Get Yin et al B6xCAST B6CAST_Crossovers
+  wget -O Yin_CO.B6xCAST.tab https://github.com/Yue-Jiang/sciliantifig/blob/master/inst/extdata/haploid.no0.hb.filtered.cast.tab?raw=true
+  cat Yin_CO.B6xCAST.tab |perl -lane 'print join("\\t",@F[1..4],\$F[0],\$F[5])' |grep -v CHROM |sort -k1,1 -k2n,2n >Yin_CO.B6xCAST.full.bed
+  cat Yin_CO.B6xCAST.tab |perl -lane '\$mid=int((\$F[2]+\$F[3])/2); print join("\\t",\$F[1],\$mid-1,\$mid,\$F[6],\$F[0],\$F[5])' |grep -v CHROM |sort -k1,1 -k2n,2n >Yin_CO.B6xCAST.midpoint.bed
+  cat Yin_CO.B6xCAST.tab |perl -lane 'print join("\\t",@F[1..3],1)' |grep -v CHROM |sort -k1,1 -k2n,2n >YinCO_full.recombMetrics.bedgraph
+  cat Yin_CO.B6xCAST.tab |perl -lane '\$mid=int((\$F[2]+\$F[3])/2); print join("\\t",\$F[1],\$mid-1,\$mid,1)' |grep -v CHROM |sort -k1,1 -k2n,2n >YinCO_mid.recombMetrics.bedgraph
+
+  ## Baker B6xCAST H3K4me3 peaks
+  wget ftp://hgdownload.cse.ucsc.edu/goldenPath/mm9/liftOver/mm9ToMm10.over.chain.gz   -O mm9ToMm10.over.chain.gz
+
+  wget -O Baker_H3K4me3_BxC_peaks.txt.gz https://ftp.ncbi.nlm.nih.gov/geo/series/GSE60nnn/GSE60906/suppl/GSE60906%5FH3K4me3%5FBxC%5Fmerge%5Fe%2D5%5Fpeaks%2Etxt%2Egz
+  gunzip Baker_H3K4me3_BxC_peaks.txt.gz
+  grep -P '^chr[0123456789]+\\s' Baker_H3K4me3_BxC_peaks.txt |cut -f1-3,6 >Baker_H3K4me3_BxC_peaks.mm9.bedgraph
+  liftOver Baker_H3K4me3_BxC_peaks.mm9.bedgraph  mm9ToMm10.over.chain.gz  Baker_H3K4me3_BxC_peaks.mm10.bedgraph na
+  intersectBed -a Baker_H3K4me3_BxC_peaks.mm10.bedgraph -b SSDSbXc.recombMetrics.bedgraph -wa -u >H3K4me3_BxC.recombMetrics.bedgraph
+
+  wget -O Baker_H3K4me3_CxB_peaks.txt.gz https://ftp.ncbi.nlm.nih.gov/geo/series/GSE60nnn/GSE60906/suppl/GSE60906%5FH3K4me3%5FCxB%5Fmerge%5Fe%2D5%5Fpeaks%2Etxt%2Egz
+  gunzip Baker_H3K4me3_CxB_peaks.txt.gz
+  grep -P '^chr[0123456789]+\\s' Baker_H3K4me3_CxB_peaks.txt |cut -f1-3,6 >Baker_H3K4me3_CxB_peaks.mm9.bedgraph
+  liftOver Baker_H3K4me3_CxB_peaks.mm9.bedgraph  mm9ToMm10.over.chain.gz  Baker_H3K4me3_CxB_peaks.mm10.bedgraph na
+  intersectBed -a Baker_H3K4me3_CxB_peaks.mm10.bedgraph -b SSDSbXc.recombMetrics.bedgraph -wa -u >H3K4me3_CxB.recombMetrics.bedgraph
+
   ## LEPTO H3K4me3 Peaks
   wget ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM3734nnn/GSM3734408/suppl/GSM3734408%5FLE%2ER1%2EH3K4me3%2Epeaks%2Ebed%2Egz
   gunzip -c GSM3734408_LE.R1.H3K4me3.peaks.bed.gz |cut -f1-3 >Leptotene_H3K4me3.peaks.bed
@@ -2140,7 +2366,7 @@ process makeFigure2and4 {
     rm -f main.bed
     echo -e "cs\tfrom\tto" >main.tab
     cut -f1-3 \$rt >>main.tab
-    cut -f1-3 \$rt >>main.bed
+    cut -f1-3 \$rt >>main.bed 
   done
 
   for rt in *mm10.simRT.WG.bedgraph;
@@ -2234,9 +2460,50 @@ process makeFigure2and4 {
   cp accessoryFiles/sorting/*.fcs .
   cp accessoryFiles/img/DSBschemaBIG.png .
 
-  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure2.R  >o.o 2>e.e
-  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure4New.R  >o.o 2>e.e
+  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure2.R >o.o 2>e.e
+  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure4New.R >o.o 2>e.e
   R --silent --quiet --no-save <accessoryFiles/scripts/R/drawRT_EarlyMidLate_SuppFig.R >o.o 2>e.e
+  """
+  }
+
+process makeFigure5 {
+
+  publishDir params.outdirFigs,    mode: 'copy', overwrite: true, pattern: '*.png'
+  publishDir params.outdirFigs,    mode: 'copy', overwrite: true, pattern: '*.pdf'
+
+  input:
+  file (af) from af27.collect()
+  file(ori)      from mouseOriginsBG_f
+  file(models)   from modelFiles_c.collect()
+
+  output:
+  file("*igure5*png")             into figure5PNG
+  file("*igure5*pdf")             into figure5PDF
+
+  script:
+  """
+  ## Get Project .Rprofile file
+  cp accessoryFiles/scripts/R/Rprofile.workflow   ./.Rprofile
+  echo RTSCRIPTS="accessoryFiles/scripts/R/"    >>./.Renviron
+
+  cp accessoryFiles/blacklist/mm10.blacklist.bed .
+
+  sort -k1,1 ${mm10IDX} |perl -lane 'print join("\\t",\$F[0],1,\$F[1])' >cs.mm10.bed
+
+  wget https://github.com/Yue-Jiang/sciliantifig/raw/master/inst/extdata/haploid.no0.hb.filtered.cast.tab
+  perl -lane 'use Math::Round; \$m=round((\$F[2]+\$F[3])/2); print join("\\t",\$F[1],\$m-5000,\$m+5000)' haploid.no0.hb.filtered.cast.tab | grep -v CHROM | sort -k1,1 -k2n,2n > B6CAST_Crossoverss.bed
+
+  wget https://ftp.ncbi.nlm.nih.gov/geo/samples/GSM1954nnn/GSM1954839/suppl/GSM1954839_B6fXCASTm_hotspots.tab.gz
+  gunzip -c GSM1954839_B6fXCASTm_hotspots.tab.gz | intersectBed -a - -b mm10.blacklist.bed -v > B6fXCASTm_hotspots.bedgraph
+
+  wget http://hgdownload.soe.ucsc.edu/goldenPath/mm10/database/gap.txt.gz
+  gunzip -c gap.txt.gz |  cut -f2-4 | sort -k1,1 -k2n,2n | mergeBed -i - | bedtools subtract -a cs.mm10.bed -b - > Gapped.mm10.bed
+
+  bedtools nuc -fi ${mm10FA} -bed cs.mm10.bed | sed '1d'  | cut -f1,5 | sort -k1,1 -k2n,2n > cs.gc.bed
+
+  cp MeiS_ALL_S4_2to4C_STRA8_DMRT1_mm10.Rdata rtSimModel.Rdata
+
+  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure5.R
   """
   }
 
@@ -2412,8 +2679,8 @@ process makeHg38Figures {
   file('*recombMetrics.bedgraph') into humanRecombBGs
   file("rep_v_rec_HG38.tab")      into humanReprecTable
 
-  file("*igure5*png")             into figure5PNG
-  file("*igure5*pdf")             into figure5PDF
+  file("*igure6*png")             into figure6PNG
+  file("*igure6*pdf")             into figure6PDF
 
   script:
   """
@@ -2527,9 +2794,9 @@ process makeHg38Figures {
   echo -e 'cs\\tpos\\tcover\\tname\\tws\\tfr' >chr12.dz.tab
   grep -wP '(cs|chr12)' x.dz.tab >>chr12.dz.tab
 
-  #cp accessoryFiles/scripts/drawFigure5vFinal.R .
+  #cp accessoryFiles/scripts/drawFigure6.R .
 
-  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure5vFinal.R >&2
+  R --silent --quiet --no-save <accessoryFiles/scripts/R/drawFigure6.R >&2
 
   """
   }

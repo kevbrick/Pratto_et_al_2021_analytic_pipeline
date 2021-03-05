@@ -1,0 +1,209 @@
+## Pratto et al. 2021: Singularity container definition file for analytic pipeline
+## Run with : singularity build PrattoEtAl2021.sif replicationPaperSciApp.def
+Bootstrap: docker
+From: ubuntu:18.04
+
+%post
+  DEBIAN_FRONTEND=noninteractive
+  apt-get -yq update
+  apt-get -yq install xorg wget curl apt-utils build-essential zlib1g zlib1g-dev zlibc python2.7 python3.5 libxslt1-dev
+  apt-get -yq install t1-xfree86-nonfree ttf-xfree86-nonfree ttf-xfree86-nonfree-syriac gsfonts-x11 xfonts-base xfonts-75dpi xfonts-100dpi xfonts-scalable x11-utils 
+  apt-get -yq install python-setuptools python-numpy python-scipy python-pip python-pip-whl cython python-libxslt1
+  apt-get -yq install git default-jre bioperl libexpat-dev
+  apt-get -yq install gcc perl libbz2-dev liblzma-dev libcurl4-gnutls-dev libssl-dev libncurses5-dev libcrypto++6 libcrypto++-dev
+  apt-get -yq install libreadline-dev gfortran libpcre3-dev libmagick++-dev libwebp-dev libudunits2-dev
+
+  export PERL_MM_USE_DEFAULT=1
+  cpan File::Temp
+  cpan File::Basename
+  cpan File::Find
+  cpan File::Which
+  cpan Getopt::Long
+  cpan HTML::Template
+  cpan HTML::TreeBuilder
+  cpan List::Util
+  cpan Log::Log4perl
+  cpan Math::CDF
+  cpan Math::Round
+  cpan POSIX
+  cpan Statistics::Descriptive
+  cpan Switch
+  cpan XML::Compile::SOAP11
+  cpan XML::Compile::WSDL11
+  cpan XML::Compile::Transport::SOAPHTTP
+  cpan XML::Parser::Expat
+  cpan XML::Simple
+  cpan JSON
+
+%appinstall bedtools
+  #wget https://github.com/arq5x/bedtools2/releases/download/v2.29.2/bedtools.static.binary
+  #mv bedtools.static.binary bedtools
+  wget https://github.com/arq5x/bedtools2/archive/v2.27.1.tar.gz
+  tar -xzvf v2.27.1.tar.gz
+  cd bedtools2-2.27.1/  
+  make
+  chmod a+x ./bin/*
+
+  #echo '#!/bin/bash' >slopBed;           echo 'bedtools slop $*'      >>slopBed
+  #echo '#!/bin/bash' >intersectBed;      echo 'bedtools intersect $*' >>intersectBed
+  #echo '#!/bin/bash' >mapBed;            echo 'bedtools map $*'       >>mapBed
+  #echo '#!/bin/bash' >sortBed;           echo 'bedtools sort $*'      >>sortBed
+  #echo '#!/bin/bash' >mergeBed;          echo 'bedtools merge $*'     >>mergeBed
+  #echo '#!/bin/bash' >windowBed;         echo 'bedtools window $*'    >>windowBed
+  #echo '#!/bin/bash' >genomeCoverageBed; echo 'bedtools genomecov $*' >>genomeCoverageBed
+  #chmod a+x *Bed
+
+%appinstall MEME
+  wget http://meme-suite.org/meme-software/5.0.1/meme_5.0.1_1.tar.gz
+  tar -xzvf meme_5.0.1_1.tar.gz
+  cd meme-5.0.1
+  ./configure --prefix=/scif/apps/MEME/meme-5.0.1 --with-url="http://meme-suite.org"
+  make
+  make install
+
+%appinstall R
+  wget https://cran.r-project.org/src/base/R-3/R-3.6.0.tar.gz
+  tar -xzvf R-3.6.0.tar.gz
+
+  ### This is important to prevent X11 errors with ggplot / ggsave
+  mkdir -p R-3.6.0/profiles
+  echo 'print("R environ setup for PrattoEtAl container: Kevin Brick 2020")'                                     > R-3.6.0/profiles/R-profile.all
+  echo 'print("***********************************************************")'                                   >> R-3.6.0/profiles/R-profile.all
+  echo 'setHook(packageEvent("grDevices", "onLoad"), function(...) grDevices::X11.options(width = 8, height = 8, xpos = 0, pointsize = 10, type = "cairo"))' >> R-3.6.0/profiles/R-profile.all
+  echo 'options(bitmapType="cairo")'
+
+  cd R-3.6.0
+  ./configure
+  make
+
+  rm -f getPackages.R
+ 
+  ## Require manual specification of older nloptr packages for R<4.0 !
+  echo 'packageurl <- "https://cran.r-project.org/src/contrib/Archive/nloptr/nloptr_1.2.1.tar.gz";  install.packages(packageurl, repos=NULL, type="source");' >>getPackages.R
+  
+  echo 'checkAndGet     <- function(pkg) {if (!pkg %in% installed.packages()){install.packages(pkg,ask=FALSE, dependencies = TRUE, repos="http://cran.us.r-project.org")}else{print(paste0(pkg," already installed ... "))}}' >>getPackages.R
+  echo 'checkAndGetBioC <- function(pkg) {if (!pkg %in% installed.packages()){BiocManager::install(pkg)}else{print(paste0(pkg," already installed ... "))}}' >>getPackages.R
+
+  echo 'checkAndGet("BiocManager")' >>getPackages.R
+  echo 'BiocManager::install(version = "3.10", ask=FALSE)' >>getPackages.R
+  echo 'checkAndGetBioC("flowCore")' >>getPackages.R
+  echo 'checkAndGetBioC("preprocessCore")' >>getPackages.R
+
+  echo 'checkAndGet("FactoMineR")' >>getPackages.R
+  echo 'checkAndGet("caTools")' >>getPackages.R
+  echo 'checkAndGet("magick")' >>getPackages.R
+  echo 'checkAndGet("animation")' >>getPackages.R
+  echo 'checkAndGet("cowplot")' >>getPackages.R
+  echo 'checkAndGet("data.table")' >>getPackages.R
+  echo 'checkAndGet("dplyr")' >>getPackages.R
+  echo 'checkAndGet("extrafont")' >>getPackages.R
+  echo 'checkAndGet("factoextra")' >>getPackages.R
+  echo 'checkAndGet("gganimate")' >>getPackages.R
+  echo 'checkAndGet("ggplot2")' >>getPackages.R
+  echo 'checkAndGet("ggplotify")' >>getPackages.R
+  echo 'checkAndGet("ggpmisc")' >>getPackages.R
+
+  echo 'checkAndGet("ggpubr")' >>getPackages.R
+  echo 'checkAndGet("ggridges")' >>getPackages.R
+  echo 'checkAndGet("ggupset")' >>getPackages.R
+  echo 'checkAndGet("gplots")' >>getPackages.R
+  echo 'checkAndGet("grid")' >>getPackages.R
+  echo 'checkAndGet("gridExtra")' >>getPackages.R
+  echo 'checkAndGet("grImport2")' >>getPackages.R
+  echo 'checkAndGet("lsr")' >>getPackages.R
+  echo 'checkAndGet("Metrics")' >>getPackages.R
+  echo 'checkAndGet("numform")' >>getPackages.R
+  echo 'checkAndGet("nVennR")' >>getPackages.R
+  echo 'checkAndGet("optparse")' >>getPackages.R
+  echo 'checkAndGet("patchwork")' >>getPackages.R
+  echo 'checkAndGet("plyr")' >>getPackages.R
+  echo 'checkAndGet("png")' >>getPackages.R
+  echo 'checkAndGet("pROC")' >>getPackages.R
+  echo 'checkAndGet("reshape2")' >>getPackages.R
+  echo 'checkAndGet("rsvg")' >>getPackages.R
+  echo 'checkAndGet("stringi")' >>getPackages.R
+  echo 'checkAndGet("tidyverse")' >>getPackages.R
+  echo 'checkAndGet("tictoc")' >>getPackages.R
+  echo 'checkAndGet("UpSetR")' >>getPackages.R
+  echo 'checkAndGet("zoo")' >>getPackages.R
+
+  ./bin/R --vanilla <getPackages.R
+
+%appinstall bwa
+  wget https://sourceforge.net/projects/bio-bwa/files/bwa-0.7.12.tar.bz2
+  tar -xjvf bwa-0.7.12.tar.bz2
+  make -C ./bwa-0.7.12
+
+%appinstall ucsctools
+  ## AT BUILD TIME, THIS IS UCSC USERAPPS V 396
+  wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/bedGraphToBigWig
+  wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/bigWigToBedGraph
+  wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/liftOver
+  wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/bigBedToBed
+  chmod a+x bedGraphToBigWig
+  chmod a+x bigWigToBedGraph
+  chmod a+x liftOver
+  chmod a+x bigBedToBed
+
+%appinstall MACS
+  wget https://files.pythonhosted.org/packages/5e/32/0108a85d9a91c18413e8492bea631725cdbc20b45970ef63e8d0020ef2da/MACS2-2.1.2.1.tar.gz
+  tar -zxvf MACS2-2.1.2.1.tar.gz
+  cd MACS2-2.1.2
+  python2.7 setup.py install
+
+%appinstall picard
+  wget https://github.com/broadinstitute/picard/releases/download/2.9.2/picard.jar
+
+%appinstall samtools
+  wget https://github.com/samtools/samtools/releases/download/1.9/samtools-1.9.tar.bz2
+  tar -xjvf samtools-1.9.tar.bz2
+  cd samtools-1.9
+  ./configure
+  make
+
+%appinstall nextflow
+  wget https://github.com/nextflow-io/nextflow/archive/v20.01.0.tar.gz
+  tar -zxvf v20.01.0.tar.gz
+
+%appinstall deeptools
+  pip install 'deeptools==3.0.1'
+
+%appinstall juicer
+  wget https://s3.amazonaws.com/hicfiles.tc4ga.com/public/juicer/juicer_tools_1.19.02.jar
+  mkdir -p scripts
+  mv juicer_tools_1.19.02.jar scripts/juicer_tools.jar
+
+%environment
+  export LC_ALL=C
+  export PATH=/scif/apps/bwa/bwa-0.7.12:$PATH
+  export PATH=/scif/apps/ucsctools/:$PATH
+  export PATH=/scif/apps/bedtools/bedtools2-2.27.1/bin:$PATH
+  export PATH=/scif/apps/MEME/bin:$PATH
+  export PATH=/scif/apps/MEME/meme-5.0.1/bin:$PATH
+  export PATH=/scif/apps/samtools/samtools-1.9:$PATH
+  export PATH=/scif/apps/nextflow/nextflow-20.01.0:$PATH
+  export PATH=/scif/apps/R/R-3.6.0/bin:$PATH
+  export PATH=/scif/apps/deeptools/bin:$PATH
+  export R_PROFILE=/scif/apps/R/R-3.6.0/profiles/R-profile.all
+  export PICARDJAR=/scif/apps/picard/picard.jar
+  export PYTHONPATH=/usr/local/lib/python2.7/dist-packages/:$PYTHONPATH
+  export JUICER=/scif/apps/juicer
+
+%runscript
+  echo "Singularity container for Pratto et al. - Kevin Brick (2020)"
+  bwa
+
+%test
+  grep -q NAME=\"Ubuntu\" /etc/os-release
+  if [ $? -eq 0 ]; then
+      echo "Container base is Ubuntu as expected."
+  else
+      echo "Container base is not Ubuntu."
+  fi
+
+%labels
+  Author "Kevin Brick"
+  Version v0.0.1
+
+%help
+  This is a singularity container for Pratto et al. 2020

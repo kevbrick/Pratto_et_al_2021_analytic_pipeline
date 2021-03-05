@@ -1,6 +1,0 @@
-setHook(packageEvent("grDevices", "onLoad"), function(...) grDevices::X11.options(width = 8, height = 8, xpos = 0, pointsize = 10, type = "cairo"))
-options(bitmapType="cairo")
-Sys.setenv(RTSCRIPTS='accessoryFiles/scripts/R')
-print("******************************************")
-print("PrattoEtAl Rprofile ..................>>>>")
-print("------------------------------------------")

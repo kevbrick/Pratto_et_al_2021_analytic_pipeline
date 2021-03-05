@@ -24,7 +24,7 @@ By default, the pipeline is configured to run from a singularity container on a 
 
 Using the local profile will assume that you have a writable temporary folder named "/tmp". This, and other system-specific settings can be changed in the nextflow configuration file (accessoryFiles/config/nextflow.config.nf). 
 
-By default, the pipeline will use up to 16 cores and 32Gb RAM. The RAM requirement is pretty inflexible, but you can change the number of cores for each process should you need to. This will simply result in a longer runtime. Resource requirements are defined in the accessoryFiles/config/nextflow.config.nf configuration file. If your system does not have the required resources, the pipeline will die once it hits the process that exceeds requirements. 
+By default, the pipeline will use up to 16 cores and 64 Gb RAM. The RAM requirement is pretty inflexible, but you can change the number of cores for each process should you need to. This will simply result in a longer runtime. Resource requirements are defined in the accessoryFiles/config/nextflow.config.nf configuration file. If your system does not have the required resources, the pipeline will die once it hits the process that exceeds requirements. 
 
 ### Required environment variables
 If running on a local filesystem, the environment variable TMPDIR must be set.

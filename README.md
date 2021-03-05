@@ -1,4 +1,4 @@
-## Analytic pipeline for Pratto et al. 2020
+## Analytic pipeline for Pratto et al. 2021
 
 ### Pipeline accessory data (required):
 The git repo contains the ONLY the pipeline script. Before running the pipeline, you need to download the accessory data. You can either run the getAccessoryFiles.sh script from the git repo:
@@ -34,7 +34,7 @@ If running on a local filesystem, the environment variable TMPDIR must be set.
 git clone https://github.com/kevbrick/prattoEtAlAnalyticPipeline.git && cd prattoEtAlAnalyticPipeline
 bash getAccessoryFiles.sh
 projDir=`pwd`
-nextflow run $projDir/replicationPaperPipe_v5.nf -c $projDir/accessoryFiles/config/nextflow.config.nf -profile singularity --projectdir $projDir/
+nextflow run $projDir/Pratto_et_al_2021_analyticPipeline.nf -c $projDir/accessoryFiles/config/nextflow.config.nf -profile singularity --projectdir $projDir/
 ```
 
 ### Other issues: 

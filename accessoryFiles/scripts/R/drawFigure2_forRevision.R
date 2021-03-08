@@ -213,9 +213,9 @@ makeHMs <- function(){
       gHM   <- gHM   + theme(legend.position='none')
     }
     
-    apX2 <- align_plots(gMean,
-                        gHM,
-                        align = 'v',axis = 'lr')
+    apX2 <- cowplot::align_plots(gMean,
+                                 gHM,
+                                 align = 'v',axis = 'lr')
     
     gX2 <- ggarrange(apX2[[1]],apX2[[2]],ncol=1,heights=vHeight)
     
@@ -378,9 +378,11 @@ lstSNS <- drawSNScomparisonFigs()
 lstCpG <- drawOriSSDSvCpGvClusters()
 
 ### Draw figure
-apX2 <- align_plots(lstCpG$gCpGHeatmap$gMean + scale_y_continuous(breaks=c(5,10,15),labels=c(5,'',15)),
-                    lstCpG$gCpGHeatmap$gHM,
-                    align = 'v',axis = 'lr')
+apX2 <- cowplot::align_plots(lstCpG$gCpGHeatmap$gMean + 
+                               scale_y_continuous(breaks=c(5,10,15),
+                                                  labels=c(5,'',15)),
+                             lstCpG$gCpGHeatmap$gHM,
+                             align = 'v',axis = 'lr')
 
 gHM <- ggarrange(apX2[[1]],apX2[[2]],ncol=1,heights=c(1,2.5))
 

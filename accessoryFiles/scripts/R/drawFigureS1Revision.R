@@ -117,23 +117,29 @@ makeHMsForS1v2 <- function(set="WT45"){
   }
 
   if (set == "WT12"){
-    dfN1  <-  getHMplots('mm10_WT_Rep1.origins'        ,'WT1' , '-' , 'Ori')
-    dfN2  <-  getHMplots('mm10_WT_Rep2.origins'        ,'WT2' , '-' , 'Ori')
-    dfN3  <-  getHMplots('mm10_WT_Rep3.origins'        ,'WT3' , '-' , 'Ori')
-    dfESC1 <-  getHMplots('mm10_ESC_Rep1.origins'      ,'ESC1', '-', 'Ori')
-    dfESC2 <-  getHMplots('mm10_ESC_Rep2.origins'      ,'ESC2', '-', 'Ori')
-    dfESR2 <-  getHMplots('mm10_RNAse_ESC_Rep2.origins','ESC2', '+RNAse', 'Ori')
+    dfN1      <- getHMplots('mm10_WT_Rep1.origins'        ,'WT1' , '-' , 'Ori')
+    dfN2      <- getHMplots('mm10_WT_Rep2.origins'        ,'WT2' , '-' , 'Ori')
+    dfN3      <- getHMplots('mm10_WT_Rep3.origins'        ,'WT3' , '-' , 'Ori')
+    dfESC1    <- getHMplots('mm10_ESC_Rep1.origins'       ,'ESC1', '-', 'Ori')
+    dfESC1G4C <- getHMplots('mm10_ESC_Rep1.g4.Crick'      ,'ESC1', '-', 'G4(C)')
+    dfESC1G4W <- getHMplots('mm10_ESC_Rep1.g4.Watson'     ,'ESC1', '-', 'G4(W)')
+    dfESC2 <-  getHMplots('mm10_ESC_Rep2.origins'         ,'ESC2', '-', 'Ori')
+    dfESR2 <-  getHMplots('mm10_RNAse_ESC_Rep2.origins'   ,'ESC2', '+RNAse', 'Ori')
 
     dfFacetMn <- rbind(dfN1$mData,
                        dfN2$mData,
                        dfN3$mData,
                        dfESC1$mData,
+                       dfESC1G4C$mData,
+                       dfESC1G4W$mData,
                        dfESC2$mData,
                        dfESR2$mData)
 
     dfFacetHM <- rbind(dfN1$hmData,
                        dfN2$hmData,
                        dfN3$hmData,
+                       dfESC1G4C$hmData,
+                       dfESC1G4W$hmData,
                        dfESC1$hmData,
                        dfESC2$hmData,
                        dfESR2$hmData)
@@ -207,6 +213,12 @@ getOriginOverlaps <- function(dfOL){
   ori_samples <- names(dfOL)[grepl('^ori_',names(dfOL)) & !grepl('(RNAse|sperm|RNAh|Rep4|Rep5)',names(dfOL))]
   ori_names   <- gsub('ori_','',names(dfOL)[grepl('^ori_',names(dfOL)) & !grepl('(RNAse|sperm|RNAh|Rep4|Rep5)',names(dfOL))])
 
+  dfOL <- dfOL %>% mutate(oriSum = (ori_ESC_Rep1 > 0) + 
+                            (ori_ESC_Rep2 > 0) + 
+                            (ori_WT_Rep1 > 0) + 
+                            (ori_WT_Rep2 > 0) + 
+                            (ori_WT_Rep3 > 0) )
+  
   dfAnother <- data.frame(name=ori_names,
                           count=0,
                           shared=0,
@@ -223,9 +235,11 @@ getOriginOverlaps <- function(dfOL){
     dfAnother$label[dfAnother$name == name1]  <- round(dfAnother$pc[dfAnother$name == name1],0)
   }
   
-  dfAnother <- dfAnother %>% mutate(namelbl=paste0(gsub("_"," ",name),
-                                                   "\n(N =",format(count,big.mark = ","),
-                                                   ")"))
+  # dfAnother <- dfAnother %>% mutate(namelbl=paste0(gsub("_"," ",name),
+  #                                                  "\n(N = ",format(count,big.mark = ","),
+  #                                                  ")"))
+  
+  dfAnother <- dfAnother %>% mutate(namelbl=gsub("_"," ",name))
   
   mAnother <- reshape2:::melt.data.frame(dfAnother,
                                    id.vars = 'namelbl', 
@@ -302,13 +316,13 @@ dfUpsetPlot <- dfUpset %>%
   dplyr:::filter(grpCount > 50) %>%
   select(name,samples)
 
+# geom_text(stat='count', 
+#               aes(label=format(after_stat(count),big.mark = ",")), 
+#               hjust=-0.1,vjust=-1,size=7*5/14,angle=45) + 
 gUpsetOnly  <- ggplot(dfUpsetPlot,
                   aes(x = samples)) +
   geom_bar() +
   scale_x_upset() + xlab('') + ylab('Origins (thousands)') + 
-  geom_text(stat='count', 
-            aes(label=format(after_stat(count),big.mark = ",")), 
-            hjust=-0.1,vjust=-1,size=7*5/14,angle=45) + 
   geom_blank(aes(y=10000)) + 
   scale_y_continuous(breaks=c(0,5000,10000), labels=c(0,5,10)) + 
   theme_combmatrix(combmatrix.panel.point.size = 1.5,
@@ -316,7 +330,7 @@ gUpsetOnly  <- ggplot(dfUpsetPlot,
 
 gOverlaps <- getOriginOverlaps(dfESC)
 gUpset    <- gUpsetOnly + inset_element(ggarrange(gOverlaps,labels='F',font.label = list(size=8,fontface='bold'),
-                                                  hjust=0,vjust=1),0.2,0.3,1,1)
+                                                  hjust=0,vjust=1),0.2,0.35,1,.9)
 
 ## Scatterplots V ESC Origins
 gESC  <- plotScatters_Testis_V_ESCs(dfESC)
@@ -370,7 +384,7 @@ sliceES2 <- drawOriSlice(slice = mySlice,
                         filled=FALSE,
                         annotScale=0.35)
 
-gSlicesAligned <- align_plots(sliceES2$gCover+ theme(plot.margin=unit(c(0,0,0,0),'cm')),
+gSlicesAligned <- cowplot::align_plots(sliceES2$gCover+ theme(plot.margin=unit(c(0,0,0,0),'cm')),
                               sliceWT$gCover+ theme(plot.margin=unit(c(0,0,0,0),'cm')),
                               sliceWT$gAnnot+ theme(plot.margin=unit(c(0,0,0,0),'cm')),
                               align='v',axis = 'lr')
@@ -397,7 +411,7 @@ gAveragePlots45 <- makeHMsForS1v2("WT45")
 gAveragePlots <- ggarrange(gAveragePlots12$gFig,
                            gAveragePlots45$gFig,
                            ncol=2,nrow=1,
-                           widths=c(2,3),
+                           widths=c(8,13),
                            labels=c('B','C'),
                            font.label = list(size=8,face='bold'),
                            hjust=0,vjust=1)
@@ -406,7 +420,7 @@ gAll <- ggarrange(gSlices,
                   gAveragePlots,
                   gEtoL,
                   nrow=3,
-                  heights=c(5,4,5),
+                  heights=c(5,3,5),
                   labels=c('A','',''),
                   font.label = list(size=8,face='bold'),
                   hjust=0,vjust=1)

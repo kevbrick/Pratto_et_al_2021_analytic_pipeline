@@ -351,13 +351,8 @@ drawOriSlice <- function(slice='chr1_38Mb_figure1',
   coverHeight <- 1
   annotHeight <- coverHeight*annotScale
 
-  # gFig <- ggarrange(gCov    + noMarg,
-  #                   gAnnotI + noMarg,
-  #                   heights=c(coverHeight,annotHeight),
-  #                   ncol=1,nrow=2,align='v')
-
   ## Alternative to ggarrange to align complex plots
-  aP   <- align_plots(gCov + noMarg,gAnnotI + noMarg, axis="l",align='v')
+  aP   <- cowplot::align_plots(gCov + noMarg,gAnnotI + noMarg, axis="l",align='v')
   gFig <- grid.arrange(aP[[1]],aP[[2]],
                        ncol=1,nrow=2,
                        heights=c(coverHeight,annotHeight))
@@ -687,7 +682,7 @@ drawOriClusterSlice <- function(slice='chr1_38Mb_figure1',
   annotHeight <- coverHeight*annotScale
 
   ## Alternative to ggarrange to align complex plots
-  aP   <- align_plots(gCov + noMarg,
+  aP   <- cowplot::align_plots(gCov + noMarg,
                       gCpG + negMarg,
                       gAnnotI + bottMarg,
                       axis="l",align='v')

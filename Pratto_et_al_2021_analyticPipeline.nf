@@ -1276,11 +1276,13 @@ process getTFBSfiles {
   """
   wget http://opera.autosome.ru/downloads/ape-3.0.2.jar
   wget https://raw.githubusercontent.com/autosome-ru/sarus/master/releases/sarus-2.0.1.jar
-  wget http://gtrd.biouml.org/downloads/19.10/chip-seq/Mus%20musculus_meta_clusters.interval.gz -O TF_peaks.tar.gz
   wget https://hocomoco11.autosome.ru/final_bundle/hocomoco11/core/MOUSE/mono/HOCOMOCOv11_core_pwm_MOUSE_mono.tar.gz
+	
+  ## This linkis unstable: data included in accessoryFiles folder instead
+  #wget http://gtrd.biouml.org/downloads/19.10/chip-seq/Mus%20musculus_meta_clusters.interval.gz -O TF_peaks.tar.gz
 
   #cp accessoryFiles/TF/*jar .
-  #cp accessoryFiles/TF/*gz .
+  cp accessoryFiles/TF/*gz .
 
   zcat TF_peaks.tar.gz | grep -v uniprot | grep -P 'chr[0-9]+\\s' |awk -F"\\t" '{print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t"toupper(\$6)"\\t+">toupper(\$6)".TFBS.bed"}'
 

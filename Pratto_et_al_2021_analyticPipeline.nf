@@ -716,7 +716,8 @@ process makeOriginCallingSaturationCurve {
 
 process processAndKeepOrigins {
 
-   publishDir params.outdirOrigins,  mode: 'copy', overwrite: true
+   publishDir params.outdirOrigins,  mode: 'copy', overwrite: true, pattern: "*OriSSDS_Peaks.bedgraph"
+   publishDir "${params.outdirOrigins}/altNamesForModelling",  mode: 'copy', overwrite: true, pattern: "*FRfiltered.bedgraph"
 
    tag {sqtBed3}
 
@@ -729,6 +730,7 @@ process processAndKeepOrigins {
    output:
    file "*OriSSDS_Peaks.bed"                  into (finalPeaks, fPeaks2)
    file "*OriSSDS_Peaks.bedgraph"             into (finalBG, finalFilteredOriginsBG)
+   file "*FRfilteref.bedgraph"                into (oriOldNamesForModel)
    file "ESC_Rep1*OriSSDS_Peaks.bedgraph"     optional true into mm10ESCOrigins
 
    script:
@@ -741,9 +743,11 @@ process processAndKeepOrigins {
    perl accessoryFiles/scripts/normalizeStrengthByAdjacentRegions.pl --bed ${sqtNm}.peaks.bedM --in ${sqtBed3} --out ${sqtNm}.peaks.RC.bedgraph --rc --tmp tmp
 
    ## Retain peaks with W/C asymmetry
-   perl -lane 'print join("\\t",@F[0..3]) if ((\$F[8]/(\$F[8]+\$F[10]+.0001) > 0.49) & (\$F[9]/(\$F[9]+\$F[11]+.0001) > 0.49) | (\$F[2]-\$F[1]) > 7000)' ${sqtNm}.peaks.RC.tab > ${sqtNm}.OriSSDS_Peaks.bedgraph
+   perl -lane 'print join("\\t",@F[0..3]) if ((\$F[8]/(\$F[8]+\$F[10]+.0001) > 0.49) & (\$F[9]/(\$F[9]+\$F[11]+.0001) > 0.49) | (\$F[2]-\$F[1]) > 7000)' ${sqtNm}.peaks.RC.tab >${sqtNm}.peaks.FRfiltered.bedgraph
 
+   cp ${sqtNm}.peaks.FRfiltered.bedgraph ${sqtNm}.OriSSDS_Peaks.bedgraph
    cut -f1-3 ${sqtNm}.OriSSDS_Peaks.bedgraph >${sqtNm}.OriSSDS_Peaks.bed
+
    cat ${sqtNm}*1.00pc.0.peaks.xls >${sqtNm}.finalpeaks.xls
    """
   }
@@ -1590,7 +1594,7 @@ process processBestModels {
   file(mm10RDBG)         from rdOrgBG_forModel_mm10.collect()
   file(oriMM)            from mouseOriginsBG_a
   file(oriMMu)           from mouseOriginsBGUnion
-  file(oriIndivual)      from finalFilteredOriginsBG.collect()
+  file(oriIndivual)      from oriOldNamesForModel.collect()
   // file(oriClustersPDF) from oriClustersPDF // This is just to make it wait
 
   output:

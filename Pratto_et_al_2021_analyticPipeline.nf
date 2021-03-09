@@ -1949,61 +1949,6 @@ process compareToSNSandOKSeq {
   """
   }
 
-  process makeFigureS1 {
-
-    publishDir "${params.outdirFigs}/supp", mode: 'copy', overwrite: true
-
-    input:
-    file (af) from af16.collect()
-    file(sliceTab)   from sliceTab_b.collect()
-    file(sliceOri)   from sliceOri_b.collect()
-    file(sliceTSS)   from sliceTSS_b.collect()
-    file(sliceATAC)  from sliceATAC_b.collect()
-    file(sliceCGI)   from sliceCGI_b.collect()
-    file(sliceGenes) from sliceGenes_b.collect()
-    file(sliceG4)    from sliceG4_b.collect()
-    file(oriTable)   from allOriginRData_a.collect()
-    file(rawOrisTab) from mouseOriginsInitTAB
-    file(oriGZ) from oriSSDS_dtMatrix_b.collect()
-    file(g4GZ)  from g4SSDS_dtMatrix_b.collect()
-
-    file (ori) from mouseOriginsDets
-
-    output:
-    file('Pratto*png')   into suppFig1PNG
-    file('Pratto*pdf')   into suppFig1PDF
-
-    script:
-    def sqtName = "mm10_OriSSDS"
-    """
-    ## Coverage: gunzip all matrix files #########################################
-    for z in *gz; do
-      unzipped=\${z/.gz/}
-      gunzip -c \$z > \$unzipped
-    done
-
-    ## Get Project .Rprofile file
-    cp accessoryFiles/scripts/R/Rprofile.workflow ./.Rprofile
-
-    ## G4 Part ###################################################################
-    genome="mm10"
-
-    cut -f1-3 ${ori} |grep -v from >testis_origins.bed
-
-    intersectBed -a ${params.datadir}/g4/\$genome".qparser2.g4.bed" -b testis_origins.bed -v |sort -k1,1 -k2n,2n >g4noOri.bed
-    perl -lane \'@X=split(":",\$F[4]); print join("\\t",\$F[0],\$F[1]-1,\$F[1]) if (\$X[0] >= 6 && \$F[5] eq "+")\' g4noOri.bed >g4.Watson.bed
-    perl -lane \'@X=split(":",\$F[4]); print join("\\t",\$F[0],\$F[2]-1,\$F[2]) if (\$X[0] >= 6 && \$F[5] ne "+")\' g4noOri.bed >g4.Crick.bed
-
-    ## Get Project .Rprofile file
-    cp accessoryFiles/scripts/R/Rprofile.workflow ./.Rprofile
-
-    cp accessoryFiles/img/OKSeq.HM.png .
-
-    ## Draw figure ###############################################################
-    R --no-save <accessoryFiles/scripts/R/drawFigureS1Revision.R ||true
-    """
-    }
-
 process makeFigure1 {
 
   publishDir "${params.outdirFigs}/all", mode: 'copy', overwrite: true

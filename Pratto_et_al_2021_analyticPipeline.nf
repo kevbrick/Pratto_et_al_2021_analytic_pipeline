@@ -635,7 +635,7 @@ process shufBEDs {
   """
   echo ${ssdsBed}
   perl accessoryFiles/scripts/q30SSDS.pl <${ssdsBed} >${id}.T.q30.bed
-  intersectBed -a ${id}.T.q30.bed -b  accessoryFiles/data/blacklist/mm10.blacklist.bed -v |grep -v chrM >${id}.T.q30noBL.bed
+  intersectBed -a ${id}.T.q30.bed -b  accessoryFiles/blacklist/mm10.blacklist.bed -v |grep -v chrM >${id}.T.q30noBL.bed
   shuf ${id}.T.q30noBL.bed |perl accessoryFiles/scripts/reverseStrandsForOriCalling.pl >${id}.T.sq30.bed
   """
   }

@@ -730,7 +730,7 @@ process processAndKeepOrigins {
    output:
    file "*OriSSDS_Peaks.bed"                  into (finalPeaks, fPeaks2)
    file "*OriSSDS_Peaks.bedgraph"             into (finalBG, finalFilteredOriginsBG)
-   file "*FRfilteref.bedgraph"                into (oriOldNamesForModel)
+   file "*FRfiltered.bedgraph"                into (oriOldNamesForModel)
    file "ESC_Rep1*OriSSDS_Peaks.bedgraph"     optional true into mm10ESCOrigins
 
    script:

@@ -42,7 +42,6 @@ params.projectdir        = "."
 params.tmpdir            = "/lscratch/\$SLURM_JOBID"
 
 params.accessorydir      = "${params.projectdir}/accessoryFiles/"
-params.mmOriSSDSdir      = "${params.accessorydir}/data/oriSSDS/mouse/"
 params.RTdir             = "${params.accessorydir}/RTSeq/"
 params.RDorgdir          = "${params.accessorydir}/RTSeq/replicationdomain.org"
 
@@ -54,6 +53,8 @@ params.annotationdir     = "accessoryFiles/annotation/"
 params.rnadir            = "accessoryFiles/RNASeq/"
 params.modelsdir         = "accessoryFiles/RTSeq/bestModels/"
 params.dataRTdir         = "accessoryFiles/RTSeq/"
+
+params.mmOriSSDSdir      = "${params.datadir}/oriSSDS/mouse/"
 
 Channel.fromPath("${params.accessorydir}")
        .into {af1; af2 ; af3 ; af4 ; af5 ; af6 ; af7 ; af8 ; af9 ; af10;
@@ -563,7 +564,7 @@ process convertReplicationDomainsOrgBGs_Mouse {
 
     perl ${params.codedir}/convertToModellingBG.pl \$nm.s2.bg ${mm10IDX} >\$nm.s3.bg
 
-    intersectBed -a \$nm.s3.bg -b ${params.datadir}/blacklist/mm10.blacklist.bed  -v >\$modBG
+    intersectBed -a \$nm.s3.bg -b accessoryFiles/blacklist/mm10.blacklist.bed  -v >\$modBG
   done
   """
   }
@@ -613,7 +614,7 @@ process convertReplicationDomainsOrgBGs_Human {
 
     perl ${params.codedir}/convertToModellingBG.pl \$nm.s2.bg ${hg38IDX} >\$nm.s3.bg
 
-    intersectBed -a \$nm.s3.bg -b ${params.datadir}/blacklist/hg38.blacklist.bed  -v >\$modBG
+    intersectBed -a \$nm.s3.bg -b accessoryFiles/blacklist/hg38.blacklist.bed  -v >\$modBG
   done
   """
   }
@@ -715,8 +716,7 @@ process makeOriginCallingSaturationCurve {
 
 process processAndKeepOrigins {
 
-   publishDir params.outdirOrigins,  mode: 'copy', overwrite: true, pattern: "*peaks.RC.bedgraph"
-   publishDir params.outdirOrigins,  mode: 'copy', overwrite: true, pattern: "*FRfiltered.bedgraph"
+   publishDir params.outdirOrigins,  mode: 'copy', overwrite: true
 
    tag {sqtBed3}
 
@@ -727,22 +727,23 @@ process processAndKeepOrigins {
    file (sqtBed3)
 
    output:
-   file "*peaks.RC.bed"                       into finalPeaks, fPeaks2
-   file "*peaks.RC.bedgraph"                  into finalBG
-   file "*finalpeaks.xls"                     into finalXLS
-   file "*.FRfiltered.bedgraph"               into finalFilteredOriginsBG
-   file "ESC_Rep1*filtered*aph" optional true into mm10ESCOrigins
+   file "*OriSSDS_Peaks.bed"                  into (finalPeaks, fPeaks2)
+   file "*OriSSDS_Peaks.bedgraph"             into (finalBG, finalFilteredOriginsBG)
+   file "ESC_Rep1*OriSSDS_Peaks.bedgraph"     optional true into mm10ESCOrigins
 
    script:
    def sqtNm = sqtBed3.name.replaceFirst(".T.sq30.bed","")
    """
    sort -k1,1 -k2n,2n -k3n,3n ${sqtNm}*_1.00pc.*.peaks.bed >allpks.bed
    mergeBed -i allpks.bed -d 500 >${sqtNm}.peaks.bedM
+
+   ## Calc strength
    perl accessoryFiles/scripts/normalizeStrengthByAdjacentRegions.pl --bed ${sqtNm}.peaks.bedM --in ${sqtBed3} --out ${sqtNm}.peaks.RC.bedgraph --rc --tmp tmp
 
-   perl -lane 'print join("\\t",@F[0..3]) if ((\$F[8]/(\$F[8]+\$F[10]+.0001) > 0.49) & (\$F[9]/(\$F[9]+\$F[11]+.0001) > 0.49) | (\$F[2]-\$F[1]) > 7000)' ${sqtNm}.peaks.RC.tab > ${sqtNm}.peaks.FRfiltered.bedgraph
+   ## Retain peaks with W/C asymmetry
+   perl -lane 'print join("\\t",@F[0..3]) if ((\$F[8]/(\$F[8]+\$F[10]+.0001) > 0.49) & (\$F[9]/(\$F[9]+\$F[11]+.0001) > 0.49) | (\$F[2]-\$F[1]) > 7000)' ${sqtNm}.peaks.RC.tab > ${sqtNm}.OriSSDS_Peaks.bedgraph
 
-   cut -f1-3 ${sqtNm}.peaks.RC.bedgraph >${sqtNm}.peaks.RC.bed
+   cut -f1-3 ${sqtNm}.OriSSDS_Peaks.bedgraph >${sqtNm}.OriSSDS_Peaks.bed
    cat ${sqtNm}*1.00pc.0.peaks.xls >${sqtNm}.finalpeaks.xls
    """
   }
@@ -761,7 +762,7 @@ process mergeOrigins {
 
    script:
    """
-   sort -k1,1 -k2n,2n -k3n,3n *peaks.RC.bed >allPeaks.set
+   sort -k1,1 -k2n,2n -k3n,3n *OriSSDS_Peaks.bed >allPeaks.set
    mergeBed -i allPeaks.set -d -500 >all.mergedpeaks.tab
    cut -f1-3 all.mergedpeaks.tab >aP.bed
 
@@ -832,7 +833,7 @@ process getOriginOverlaps {
    file "*.OL" into mergedOL
 
    script:
-   def nm = fPeaks2.name.replaceFirst(".peaks.RC.bed","")
+   def nm = fPeaks2.name.replaceFirst(".OriSSDS_Peaks.bed","")
    """
 
    echo "ori_"${nm} >${fPeaks2}.OL
@@ -1054,42 +1055,9 @@ Channel.from( ["chr1" , 38764000,  39764000, "chr1_38Mb_figure1"],
               ["chr2" ,160622000, 161132000, "chr2_161Mb_figureS1"],
               ["chr6" , 52135120,  52282912, "chr6_52Mb_figure2"],
               ["chr15", 74487685,  74629350, "chr15_74Mb_figure2"],
-              ["chr15", 84668915,  84707234, "chr15_84Mb_figure2"])
+              ["chr15", 84668915,  84707234, "chr15_84Mb_figure2"],
+              ["chr17", 66070000,  66084000, "chr17_66Mb_figure2"])
       .into {slices2use; s2u}
-  //
-  // // MAKE SLICE DATA
-  // Channel.from( ["chr1" , 38764000,  39764000, "chr1_38Mb_figure1"],
-  //               ["chr2" , 74694564,  74768877, "chr2_74Mb_wideLots"],
-  //               ["chr2" ,157040000, 157220000, "chr2_157Mb"],
-  //               ["chr2" ,160622000, 161132000, "chr2_161Mb"],
-  //               ["chr2" ,160712000, 160952000, "chr2_160Mb"],
-  //               ["chr4" , 33203000,  33253000, "chr4_33Mb"],
-  //               ["chr4" , 59537000,  59637000, "chr4_59Mb"],
-  //               ["chr4" ,101200000, 101900000, "chr4_101Mb_ESC"],
-  //               ["chr4" ,101330000, 101580000, "chr4_101Mb_ESCb"],
-  //               ["chr4" ,103104000, 103224000, "chr4_103Mb"],
-  //               ["chr4" ,123655000, 123755000, "chr4_123Mb"],
-  //               ["chr4" ,126961000, 127031000, "chr4_127Mb"],
-  //               ["chr5" , 67405863,  67869098, "chr5_67Mb"],
-  //               ["chr6" , 52135120,  52282912, "chr6_52Mb_HoxA"],
-  //               ["chr6" , 53000000,  53350000, "chr6_53Mb"],
-  //               ["chr6" , 72350449,  72361990, "chr6_72Mb"],
-  //               ["chr7" ,100842558 ,100860108, "chr7_100Mb_wideNoOri"],
-  //               ["chr8" , 70461513,  70618923, "chr8_70Mb"],
-  //               ["chr8" , 79251596,  79688107, "chr8_79Mb"],
-  //               ["chr8" , 85382908,  85746511, "chr8_85Mb"],
-  //               ["chr8" ,106023193, 106246403, "chr8_106Mb"],
-  //               ["chr8" ,106854116, 107077326, "chr8_107Mb"],
-  //               ["chr8" ,109681099, 109904309, "chr8_109Mb"],
-  //               ["chr8" ,122452198, 122572643, "chr8_122Mb"],
-  //               ["chr11", 75700000,  75825000, "chr11_75Mb"],
-  //               ["chr11", 77439474,  77540385, "chr11_77Mb_wideLots"],
-  //               ["chr17", 66069000,  66085000, "chr17_66Mb_figure2"],
-  //               ["chr15", 74487685,  74629350, "chr15_74Mb_complex"],
-  //               ["chr15", 84668915,  84707234, "chr15_84Mb_1_0_twoWide"],
-  //               ["chr18", 61672481,  61700287, "chr18_61Mb_wideNoOri"],
-  //               ["chr19",  6163893,   6487504, "chr19_6Mb"])
-  //       .into {slices2use; s2u}
 
 process makeSlices {
 
@@ -1098,8 +1066,10 @@ process makeSlices {
   publishDir params.outdirSlices,             mode: 'copy', overwrite: true, pattern: '*.tab'
   publishDir params.outdirSlices,             mode: 'copy', overwrite: true, pattern: '*.bed'
   publishDir params.outdirSlices,             mode: 'copy', overwrite: true, pattern: '*.bedgraph'
-  publishDir "${params.outdirFigs}/fig1data", mode: 'copy', overwrite: true, pattern: '*ure1*'
-  publishDir "${params.outdirFigs}/fig2data", mode: 'copy', overwrite: true, pattern: '*ure2*'
+  publishDir "${params.outdirFigs}/all",  mode: 'copy', overwrite: true, pattern: '*.png'
+  publishDir "${params.outdirFigs}/all",  mode: 'copy', overwrite: true, pattern: '*.pdf'
+  publishDir "${params.outdirFigs}/main", mode: 'copy', overwrite: true, pattern: '*ure1*.p??'
+  publishDir "${params.outdirFigs}/main", mode: 'copy', overwrite: true, pattern: '*ure2*.p??'
 
   input:
   file (af) from af15.collect()
@@ -1274,14 +1244,13 @@ process getTFBSfiles {
 
   script:
   """
-  wget http://opera.autosome.ru/downloads/ape-3.0.2.jar
-  wget https://raw.githubusercontent.com/autosome-ru/sarus/master/releases/sarus-2.0.1.jar
-  wget https://hocomoco11.autosome.ru/final_bundle/hocomoco11/core/MOUSE/mono/HOCOMOCOv11_core_pwm_MOUSE_mono.tar.gz
-	
-  ## This linkis unstable: data included in accessoryFiles folder instead
-  #wget http://gtrd.biouml.org/downloads/19.10/chip-seq/Mus%20musculus_meta_clusters.interval.gz -O TF_peaks.tar.gz
+  ## These links are unstable & slow: data included in accessoryFiles folder instead
+  #wget http://opera.autosome.ru/downloads/ape-3.0.2.jar
+  #wget https://raw.githubusercontent.com/autosome-ru/sarus/master/releases/sarus-2.0.1.jar
+  #wget https://hocomoco11.autosome.ru/final_bundle/hocomoco11/core/MOUSE/mono/HOCOMOCOv11_core_pwm_MOUSE_mono.tar.gz
+	#wget http://gtrd19-10.biouml.org/downloads/19.10/chip-seq/Mus%20musculus_meta_clusters.interval.gz -O TF_peaks.tar.gz
 
-  #cp accessoryFiles/TF/*jar .
+  cp accessoryFiles/TF/*jar .
   cp accessoryFiles/TF/*gz .
 
   zcat TF_peaks.tar.gz | grep -v uniprot | grep -P 'chr[0-9]+\\s' |awk -F"\\t" '{print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t"toupper(\$6)"\\t+">toupper(\$6)".TFBS.bed"}'
@@ -1333,6 +1302,7 @@ process getTFBSfiles {
 
 process makeROCForTF {
 
+  publishDir "${params.outdirFigs}/all", mode: 'copy', overwrite: true
   publishDir "${params.outdirFigs}/TF_ROC", mode: 'copy', overwrite: true
 
   input:
@@ -1506,7 +1476,7 @@ process originsVCpGs {
 
 process makeEdUSortingFigure {
 
-  publishDir params.outdirFigs,           mode: 'copy', overwrite: true, pattern: '*p??'
+  publishDir "${params.outdirFigs}/all",  mode: 'copy', overwrite: true, pattern: '*p??'
   publishDir "${params.outdirFigs}/supp", mode: 'copy', overwrite: true, pattern: '*p??'
 
   input:
@@ -1819,11 +1789,12 @@ process makeOKSeqBW {
 
 process compareToSNSandOKSeq {
 
-  publishDir params.outdirFigs, mode: 'copy', overwrite: true, pattern: '*png'
-  publishDir params.outdirFigs, mode: 'copy', overwrite: true, pattern: '*svg'
-  publishDir params.outdirFigs, mode: 'copy', overwrite: true, pattern: '*matrix*'
-  publishDir "${params.outdirFigs}/figure1", mode: 'copy', overwrite: true, pattern: '*ure1*'
-  publishDir "${params.outdirFigs}/figureS1", mode: 'copy', overwrite: true, pattern: '*S1*'
+  publishDir "${params.outdirFigs}/all",  mode: 'copy', overwrite: true, pattern: '*png'
+  publishDir "${params.outdirFigs}/all",  mode: 'copy', overwrite: true, pattern: '*pdf'
+  publishDir "${params.outdirFigs}/all",  mode: 'copy', overwrite: true, pattern: '*svg'
+  publishDir "${params.outdirFigs}/all",  mode: 'copy', overwrite: true, pattern: '*matrix*'
+  publishDir "${params.outdirFigs}/main", mode: 'copy', overwrite: true, pattern: '*ure1*'
+  publishDir "${params.outdirFigs}/supp", mode: 'copy', overwrite: true, pattern: '*S1*'
 
   input:
   file (af)       from af30.collect()
@@ -1978,6 +1949,79 @@ process compareToSNSandOKSeq {
   """
   }
 
+  process makeFigureS1 {
+
+    publishDir "${params.outdirFigs}/supp", mode: 'copy', overwrite: true
+
+    input:
+    file (af) from af16.collect()
+    file(sliceTab)   from sliceTab_b.collect()
+    file(sliceOri)   from sliceOri_b.collect()
+    file(sliceTSS)   from sliceTSS_b.collect()
+    file(sliceATAC)  from sliceATAC_b.collect()
+    file(sliceCGI)   from sliceCGI_b.collect()
+    file(sliceGenes) from sliceGenes_b.collect()
+    file(sliceG4)    from sliceG4_b.collect()
+    file(oriTable)   from allOriginRData_a.collect()
+    file(rawOrisTab) from mouseOriginsInitTAB
+    file(oriGZ) from oriSSDS_dtMatrix_b.collect()
+    file(g4GZ)  from g4SSDS_dtMatrix_b.collect()
+
+    file (ori) from mouseOriginsDets
+
+    output:
+    file('Pratto*png')   into suppFig1PNG
+    file('Pratto*pdf')   into suppFig1PDF
+
+    script:
+    def sqtName = "mm10_OriSSDS"
+    """
+    ## Coverage: gunzip all matrix files #########################################
+    for z in *gz; do
+      unzipped=\${z/.gz/}
+      gunzip -c \$z > \$unzipped
+    done
+
+    ## Get Project .Rprofile file
+    cp accessoryFiles/scripts/R/Rprofile.workflow ./.Rprofile
+
+    ## G4 Part ###################################################################
+    genome="mm10"
+
+    cut -f1-3 ${ori} |grep -v from >testis_origins.bed
+
+    intersectBed -a ${params.datadir}/g4/\$genome".qparser2.g4.bed" -b testis_origins.bed -v |sort -k1,1 -k2n,2n >g4noOri.bed
+    perl -lane \'@X=split(":",\$F[4]); print join("\\t",\$F[0],\$F[1]-1,\$F[1]) if (\$X[0] >= 6 && \$F[5] eq "+")\' g4noOri.bed >g4.Watson.bed
+    perl -lane \'@X=split(":",\$F[4]); print join("\\t",\$F[0],\$F[2]-1,\$F[2]) if (\$X[0] >= 6 && \$F[5] ne "+")\' g4noOri.bed >g4.Crick.bed
+
+    ## Get Project .Rprofile file
+    cp accessoryFiles/scripts/R/Rprofile.workflow ./.Rprofile
+
+    cp accessoryFiles/img/OKSeq.HM.png .
+
+    ## Draw figure ###############################################################
+    R --no-save <accessoryFiles/scripts/R/drawFigureS1Revision.R ||true
+    """
+    }
+
+process makeFigure1 {
+
+  publishDir "${params.outdirFigs}/all", mode: 'copy', overwrite: true
+  publishDir "${params.outdirFigs}/main", mode: 'copy', overwrite: true, pattern: '*ure1*'
+
+  input:
+  file (af) from af38.collect()
+
+  output:
+  file("*png")           into figure1PNG
+  file("*pdf")           into figure1PDF
+
+  script:
+  """
+  cp accessoryFiles/img/Pratto_et_al_Figure1.* .
+  """
+  }
+
 process makeFigureS1 {
 
   publishDir "${params.outdirFigs}/supp", mode: 'copy', overwrite: true
@@ -2035,8 +2079,8 @@ process makeFigureS1 {
 
 process makeFigure2 {
 
-  publishDir params.outdirFigs, mode: 'copy', overwrite: true
-  publishDir "${params.outdirFigs}/fig2", mode: 'copy', overwrite: true, pattern: '*ure2*'
+  publishDir "${params.outdirFigs}/all", mode: 'copy', overwrite: true
+  publishDir "${params.outdirFigs}/main", mode: 'copy', overwrite: true, pattern: '*ure2*'
 
   input:
   file (af)              from af21.collect()
@@ -2137,8 +2181,10 @@ process makeFigure3and5 {
 
   publishDir params.outdirRTables,         mode: 'copy', overwrite: true, pattern: '*.tab'
   publishDir params.outdirAnnot,           mode: 'copy', overwrite: true, pattern: '*.bedgraph'
-  publishDir "${params.outdirFigs}/fig3" , mode: 'copy', overwrite: true, pattern: '*ure3.???'
-  publishDir "${params.outdirFigs}/fig5" , mode: 'copy', overwrite: true, pattern: '*ure5.???'
+  publishDir "${params.outdirFigs}/all" ,  mode: 'copy', overwrite: true, pattern: '*png'
+  publishDir "${params.outdirFigs}/all" ,  mode: 'copy', overwrite: true, pattern: '*pdf'
+  publishDir "${params.outdirFigs}/main" , mode: 'copy', overwrite: true, pattern: '*ure3.???'
+  publishDir "${params.outdirFigs}/main" , mode: 'copy', overwrite: true, pattern: '*ure5.???'
   publishDir "${params.outdirFigs}/supp" , mode: 'copy', overwrite: true, pattern: '*Supp*.???'
 
   input:
@@ -2386,10 +2432,10 @@ process makeFigure3and5 {
 
 process makeFigure4 {
 
-  publishDir params.outdirFigs,    mode: 'copy', overwrite: true, pattern: '*.png'
-  publishDir params.outdirFigs,    mode: 'copy', overwrite: true, pattern: '*.pdf'
+  publishDir "${params.outdirFigs}/all" ,  mode: 'copy', overwrite: true, pattern: '*png'
+  publishDir "${params.outdirFigs}/all" ,  mode: 'copy', overwrite: true, pattern: '*pdf'
+  publishDir "${params.outdirFigs}/main" , mode: 'copy', overwrite: true, pattern: '*ure4*p??'
   publishDir params.outdirRTables, mode: 'copy', overwrite: true, pattern: '*.csv'
-  //publishDir params.outdirRTables, mode: 'copy', overwrite: true, pattern: '*.Rdata'
 
   input:
   file (af) from af33.collect()
@@ -2419,9 +2465,9 @@ process makeFigure4 {
 
 process makeFigure6 {
 
-  publishDir params.outdirFigs,    mode: 'copy', overwrite: true, pattern: '*.png'
-  publishDir params.outdirFigs,    mode: 'copy', overwrite: true, pattern: '*.pdf'
-  publishDir "${params.outdirFigs}/fig6",    mode: 'copy', overwrite: true, pattern: '*.p??'
+  publishDir "${params.outdirFigs}/all" ,  mode: 'copy', overwrite: true, pattern: '*png'
+  publishDir "${params.outdirFigs}/all" ,  mode: 'copy', overwrite: true, pattern: '*pdf'
+  publishDir "${params.outdirFigs}/main" , mode: 'copy', overwrite: true, pattern: '*p??'
 
   input:
   file (af) from af32.collect()
@@ -2548,8 +2594,8 @@ process makeFigure7 {
 
   publishDir params.outdirRTables,        mode: 'copy', overwrite: true, pattern: '*.tab'
   publishDir params.outdirAnnot,          mode: 'copy', overwrite: true, pattern: '*.bedgraph'
-  publishDir params.outdirFigs,           mode: 'copy', overwrite: true, pattern: '*igu*.p??'
-  publishDir "${params.outdirFigs}/fig7", mode: 'copy', overwrite: true, pattern: '*igu*.p??'
+  publishDir "${params.outdirFigs}/all",  mode: 'copy', overwrite: true, pattern: '*igu*.p??'
+  publishDir "${params.outdirFigs}/main", mode: 'copy', overwrite: true, pattern: '*igu*.p??'
 
   input:
   file (af) from af36.collect()

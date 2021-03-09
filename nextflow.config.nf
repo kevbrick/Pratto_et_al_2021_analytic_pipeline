@@ -173,6 +173,12 @@ process {
     time = { 2.hour * task.attempt }
   }
 
+  withName:makeFigure1 {
+     cpus = { 1 * task.attempt }
+     memory = { 8.GB * task.attempt }
+     time = { 0.5.hour * task.attempt }
+  }
+
   withName:makeFigure2 {
     cpus = { 1 * task.attempt }
     memory = { 16.GB * task.attempt }

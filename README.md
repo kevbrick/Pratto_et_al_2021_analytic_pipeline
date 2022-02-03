@@ -38,7 +38,7 @@ nextflow run $projDir/Pratto_et_al_2021_analyticPipeline.nf -c $projDir/accessor
 ```
 
 ### Other issues: 
-Errors are most likely if nextflow and/or singularity are not-quite correctly configured. For example, singularity autoMounts must be enabled, and if you are using a http proxy, the proxy environment variable must be passed to singularity via the nextflow.config.nf file. Please contact me if you have questions (kevin.brick@nih.gov).  
+Errors are most likely if nextflow and/or singularity are not-quite correctly configured. For example, singularity autoMounts must be enabled, and if you are using a http proxy, the proxy environment variable must be passed to singularity via the nextflow.config.nf file. Please contact me if you have questions (kevbrick@gmail.com).  
 
 #### ------------------------------------------------------------------------------------------------------------------------
 ### Alternatives to singularity container (not recommended) 
